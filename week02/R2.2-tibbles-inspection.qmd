@@ -1,0 +1,166 @@
+---
+title: "Exercise R2.2: Working with Tibbles"
+subtitle: "STAT 540 — Week 2"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will explore the differences between base R data frames and tibbles, practice data inspection techniques, and build the habit of systematic dataset exploration.
+
+## Task 1: Data Frame vs Tibble
+
+Convert the built-in `mtcars` data frame to a tibble and observe the differences:
+
+```{r}
+library(tibble)
+library(dplyr)
+
+# Base R data frame
+print(mtcars)    # Notice: prints ALL rows
+
+# Convert to tibble
+mtcars_tbl <- as_tibble(mtcars, rownames = "car")
+print(mtcars_tbl)   # Notice: prints first 10 rows, shows column types
+```
+
+**Your turn:** List three differences you observe between printing a data frame and printing a tibble:
+
+1. *[Difference 1]*
+2. *[Difference 2]*
+3. *[Difference 3]*
+
+## Task 2: Inspecting with glimpse()
+
+```{r}
+library(dplyr)
+
+# glimpse is the tidyverse equivalent of str()
+glimpse(mtcars_tbl)
+
+# Compare to base R
+str(mtcars)
+```
+
+**Your turn:** What information does `glimpse()` show that `print()` does not?
+
+> *[Your answer]*
+
+## Task 3: Using skimr for Comprehensive Summaries
+
+```{r}
+library(skimr)
+
+# Full dataset skim
+skim(mtcars_tbl)
+
+# Grouped skim
+mtcars_tbl |>
+  group_by(cyl) |>
+  skim(mpg, hp, wt)
+```
+
+**Your turn:** From the `skim()` output, answer:
+
+1. Which numeric variable has the highest coefficient of variation (SD / mean)? ___
+2. Are there any missing values in mtcars? ___
+3. How does mean `mpg` differ across cylinder groups? ___
+
+## Task 4: Subsetting Behavior
+
+An important tibble safety feature — subsetting always returns a tibble:
+
+```{r}
+# Data frame: single column returns a vector
+mtcars[, "mpg"]         # vector
+class(mtcars[, "mpg"])  # "numeric"
+
+# Tibble: single column returns a tibble
+mtcars_tbl[, "mpg"]           # still a tibble
+class(mtcars_tbl[, "mpg"])    # "tbl_df"
+
+# To extract as a vector from a tibble, use $ or [[
+mtcars_tbl$mpg               # vector
+mtcars_tbl[["mpg"]]          # vector
+```
+
+**Your turn:** Why is the tibble behavior safer for programming? Think of a situation where the data frame behavior could cause a bug.
+
+> *[Your answer]*
+
+## Task 5: Build Your Own Tibble
+
+Create a tibble from scratch representing 5 students in the MIDS program:
+
+```{r}
+library(tibble)
+
+# Your turn: create a tibble with at least 4 columns
+# Include: name (character), age (numeric), concentration (factor or character),
+# and one column of your choice
+
+mids_students <- tibble(
+  # Your code here
+)
+
+glimpse(mids_students)
+```
+
+## Task 6: Inspect a Real Dataset
+
+Choose one of the built-in datasets below, convert to tibble if needed, and perform a complete inspection:
+
+- `nycflights13::flights`
+- `ggplot2::diamonds`
+- `palmerpenguins::penguins`
+
+```{r}
+# Your choice — load and inspect
+library(palmerpenguins)  # or another package
+
+df <- as_tibble(penguins)
+
+# Run your inspection checklist:
+# 1. Shape
+dim(df)
+
+# 2. Types
+glimpse(df)
+
+# 3. Head/Tail
+head(df)
+tail(df)
+
+# 4. Missing values
+colSums(is.na(df))
+
+# 5. Summary
+summary(df)
+
+# 6. Comprehensive
+library(skimr)
+skim(df)
+```
+
+**Your turn:** Write a 3–5 sentence inspection summary of your chosen dataset:
+
+> *[Your summary]*
+
+## Submission Checklist
+
+- [ ] Data frame vs tibble differences documented
+- [ ] glimpse() vs print() comparison explained
+- [ ] skimr questions answered with specific numbers
+- [ ] Subsetting safety question addressed
+- [ ] Custom tibble created
+- [ ] Real dataset inspected with full checklist
+- [ ] Files committed to GitHub

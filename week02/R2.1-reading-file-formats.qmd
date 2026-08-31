@@ -1,0 +1,128 @@
+---
+title: "Exercise R2.1: Reading Multiple File Formats in R"
+subtitle: "STAT 540 — Week 2"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: true
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will read datasets in three different formats (CSV, Excel, JSON), inspect each one, and compare the experience across formats.
+
+## Task 1: Read a CSV File
+
+Use the `readr` package to read a CSV dataset. You may use any publicly available CSV — for example, download one from the course GitHub repository or use a URL.
+
+```{r, message=FALSE}
+library(readr)
+library(dplyr)
+
+# Option A: From a URL
+csv_data <- read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv")
+
+# Option B: From a local file
+# csv_data <- read_csv("data/sales.csv")
+
+# Inspect
+glimpse(csv_data)
+```
+
+**Your turn:** How many rows and columns does your CSV dataset have? What column types were detected?
+
+> The CSV dataset has 344 rows and 7 columns. The columns are characters, and double values in R. 
+
+## Task 2: Read an Excel File
+
+Use the `readxl` package to read an Excel file. Download one from the course repository, or use a public dataset.
+
+```{r}
+library(readxl)
+
+# List sheets (if applicable)
+excel_sheets("data/employees.xlsx")
+
+# Read the first sheet
+xlsx_data <- read_excel("data/employees.xlsx")
+
+# Read a specific sheet
+# xlsx_data <- read_excel("data/employees.xlsx", sheet = "Department A")
+
+# Inspect
+glimpse(xlsx_data)
+```
+
+**Your turn:** Does the Excel file have multiple sheets? If so, how many and what are they named?
+
+> This file (downloaded this from Kaggle) only has one sheet of data.
+
+## Task 3: Read a JSON File
+
+Use `jsonlite` to read a JSON file or API response.
+
+```{r}
+library(jsonlite)
+
+# From a local file
+# json_data <- fromJSON("data/api_response.json")
+
+# From a URL (GitHub API example)
+json_data <- fromJSON("https://api.github.com/users/hadley/repos?per_page=5")
+
+# Inspect — what structure did we get?
+class(json_data)
+names(json_data)
+str(json_data, max.level = 1)
+
+# If it's a data frame, inspect normally
+if (is.data.frame(json_data)) {
+  glimpse(json_data)
+}
+```
+
+**Your turn:** Is the JSON result a data frame, a list, or something else? How many top-level fields (columns or names) does it have?
+
+> The json result is a dataframe with 5 columns and 81 rows.
+
+## Task 4: Compare the Three Formats
+
+Fill in this comparison based on your experience:
+
+| Criterion | CSV | Excel | JSON |
+|-----------|-----|-------|------|
+| Function used | `read_csv()` | `read_excel()` | `fromJSON()` |
+| Package required | *readr and dplyr* | *readxl and dplyr* | *jsonlite and dplyr* |
+| Result type (class) | *Dataframe* | *Dataframe* | *Dataframe* |
+| Column types auto-detected? | *Yes* | *Yes* | *Yes* |
+| Supports nested data? | *Yes* | *Yes* | *Yes* |
+| Human-readable in text editor? | *Yes* | *Yes* | *Yes* |
+
+## Task 5: Initial Inspection Report
+
+For one of the three datasets, write a one-paragraph data summary covering:
+
+- What the data represents (rows = what? columns = what?)
+- How many observations and variables
+- Types of variables (numeric, categorical, date, text)
+- Any missing values detected
+- One thing that surprised you or that you would want to investigate further
+
+> I choose to write about the csv data in this exercise. This CSV is a dataset of penguins, with each of the 344 rows representing individual penguins in the dataset, along with 7 recorded features, which include bill length and depth, flipper length, and their body mass. The variable/column types were of characters (those that described their species, native island, and sex), and of doubles (those that described numerical attributes such as their mass and body part lengths.) I did see a couple of missing values from one row (no describing information for one penguin aside from their species and native island), but otherwise, the dataset was complete for the most part. One thing that surprised me was, seeing the summary statistics that R provided, it seemed that there was a positive correlation between flipper length and body mass. I'd love to investigate on this further using data analytics!
+
+## Submission
+
+1. Render this `.qmd` to HTML
+2. Commit both files to your GitHub repository under `week02/exercises/`
+
+```bash
+git add week02/exercises/R2.1*
+git commit -m "Complete Exercise R2.1: Reading CSV, Excel, JSON in R"
+git push origin main
+```
