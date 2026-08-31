@@ -1,0 +1,173 @@
+---
+title: "Exercise R1.2: First Reproducible R Script"
+subtitle: "STAT 540 — Week 1"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: true
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will create a reproducible R analysis using a built-in dataset, practice basic data inspection, and commit your work to GitHub.
+
+## Task 1: Load and Inspect mtcars
+
+The `mtcars` dataset is one of R's classic built-in datasets. It contains data from the 1974 *Motor Trend* magazine about 32 automobiles.
+
+```{r}
+# Load the dataset (built-in, no package needed)
+data(mtcars)
+
+# View the first 5 rows
+head(mtcars, 5)
+
+# View the last 3 rows
+tail(mtcars, 3)
+
+# What are the dimensions?
+dim(mtcars)
+
+# What are the column names?
+names(mtcars)
+
+# Structure of the dataset
+str(mtcars)
+```
+
+**Your turn:** In your own words, describe what each row represents and name three variables you find interesting.
+
+> Each row represents the individual car models in the mtcars dataset, with specific details according to the variables. I find the 'mpg', 'wt', and 'hp' variables to be quite interesting, as these are the details I pay attention to the most when looking into cars. 
+
+## Task 2: Compute Summary Statistics
+
+```{r}
+# Mean miles per gallon
+mean_mpg <- mean(mtcars$mpg)
+cat("Mean MPG:", mean_mpg, "\n")
+
+# Median horsepower
+median_hp <- median(mtcars$hp)
+cat("Median HP:", median_hp, "\n")
+
+# Standard deviation of weight
+sd_wt <- sd(mtcars$wt)
+cat("SD of Weight:", sd_wt, "\n")
+
+# Range of quarter-mile time
+range_qsec <- range(mtcars$qsec)
+cat("Quarter-mile time range:", range_qsec[1], "to", range_qsec[2], "\n")
+```
+
+**Your turn:** Compute the following and report the values:
+
+1. The mean weight (`wt`) of all cars: ___
+2. The maximum horsepower (`hp`): ___
+3. The number of cars with 4 cylinders: ___
+
+```{r}
+# Your code for the three computations above:
+# 1.
+mean(mtcars$wt)
+
+# 2.
+max(mtcars$hp)
+
+# 3.
+sum(mtcars$cyl == 4)
+```
+
+The mean weight of the cars is 3217.25 pounds. The maximum horsepower is 335, and there are 11 cars with 4 cylinders. 
+
+## Task 3: Grouped Summaries
+
+Compute the mean MPG for each number of cylinders:
+
+```{r}
+# Base R approach
+tapply(mtcars$mpg, mtcars$cyl, mean)
+
+# Tidyverse approach
+library(dplyr)
+mtcars |>
+  group_by(cyl) |>
+  summarize(
+    mean_mpg = mean(mpg),
+    mean_hp = mean(hp),
+    count = n()
+  )
+```
+
+**Your turn:** Write a sentence interpreting the relationship between number of cylinders and fuel efficiency:
+
+> There is a negative correlation between the number of cylinders and fuel efficiency; the more cylinders there are, the less mpg the cars have. 
+
+## Task 4: Your First Visualization
+
+```{r}
+library(ggplot2)
+
+# Scatterplot of weight vs. MPG, colored by cylinder count
+ggplot(mtcars, aes(x = wt, y = mpg, color = factor(cyl))) +
+  geom_point(size = 3) +
+  labs(
+    title = "Car Weight vs. Fuel Efficiency",
+    subtitle = "Data from 1974 Motor Trend magazine",
+    x = "Weight (1,000 lbs)",
+    y = "Miles Per Gallon",
+    color = "Cylinders"
+  ) +
+  theme_minimal()
+```
+
+**Your turn:** Modify the plot above to also include a smooth trend line for each cylinder group. Hint: add `geom_smooth(method = "lm", se = FALSE)` to the plot.
+
+```{r}
+# Your modified plot code here:
+ggplot(mtcars, aes(x = wt, y = mpg, color = factor(cyl))) +
+  geom_point(size = 3) +
+  labs(
+    title = "Car Weight vs. Fuel Efficiency",
+    subtitle = "Data from 1974 Motor Trend magazine",
+    x = "Weight (1,000 lbs)",
+    y = "Miles Per Gallon",
+    color = "Cylinders"
+  ) +
+  theme_minimal() +
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+## Task 5: Write a Data Summary
+
+In 3–5 sentences, summarize what you learned about the mtcars dataset. Include at least one specific number from your analysis and one observation from your visualization.
+
+> The mt cars dataset contains information about fuel consumption, horsepower, and various design characteristics from various cars from 1973-74. What I found particularly interesting was the correlation between the number of cylinders, which ranged from 4-8, and the vehicle's average fuel efficiency, which ranged from a mean of about 15 mpg to 26 mpg. To be more specific, the lower the amount of cylinders, the farther a car could travel on a gallon of gas. Visualizing this on a scatter plot also showed how weight correlated with the number of cylinders as well. 
+
+## Task 6: Commit to GitHub
+
+1. Save this completed `.qmd` file
+2. Render it to HTML
+3. In the terminal, commit and push:
+
+```bash
+git add week01/exercises/R1.2-first-script.qmd
+git add week01/exercises/R1.2-first-script.html
+git commit -m "Complete Exercise R1.2: mtcars analysis"
+git push origin main
+```
+
+## Submission Checklist
+
+- [ ] All code chunks run without errors
+- [ ] All "Your turn" sections are completed
+- [ ] Data summary paragraph is written
+- [ ] Modified visualization includes trend lines
+- [ ] Both `.qmd` and `.html` files are committed to GitHub
+- [ ] Commit message is descriptive
