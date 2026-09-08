@@ -1,7 +1,7 @@
 ---
 title: "Exercise R2.2: Working with Tibbles"
 subtitle: "STAT 540 — Week 2"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -35,9 +35,9 @@ print(mtcars_tbl)   # Notice: prints first 10 rows, shows column types
 
 **Your turn:** List three differences you observe between printing a data frame and printing a tibble:
 
-1. *[Difference 1]*
-2. *[Difference 2]*
-3. *[Difference 3]*
+1. *I can see that tibbles, when printed out, have a more explicit view of the different data types for each of the columns, or variables.*
+2. *Each of the rows, or observations, are numbered.*
+3. *There is a clear view of how big the data structure is.*
 
 ## Task 2: Inspecting with glimpse()
 
@@ -53,7 +53,7 @@ str(mtcars)
 
 **Your turn:** What information does `glimpse()` show that `print()` does not?
 
-> *[Your answer]*
+> *`glimpse()` prints out the tibbles differently than `print()` does--the difference lies mostly in the layout of the rows and columns. The former has a more transposed view of the layout, so that the columns run vertically down the edge, with each of the values next to it shown horizontally, while the opposite is true for the latter.*
 
 ## Task 3: Using skimr for Comprehensive Summaries
 
@@ -75,6 +75,12 @@ mtcars_tbl |>
 2. Are there any missing values in mtcars? ___
 3. How does mean `mpg` differ across cylinder groups? ___
 
+> 1. The largest coefficient of variation is for am at around 1.228.
+2. There are no missing variables. 
+3. Across the different variable groups: 4 cylinders: 26.66 mpg
+6 cylinders: 19.74 mpg
+8 cylinders: 15.10 mpg
+
 ## Task 4: Subsetting Behavior
 
 An important tibble safety feature — subsetting always returns a tibble:
@@ -95,7 +101,7 @@ mtcars_tbl[["mpg"]]          # vector
 
 **Your turn:** Why is the tibble behavior safer for programming? Think of a situation where the data frame behavior could cause a bug.
 
-> *[Your answer]*
+> Tibbles are better for tabular data because columns are still treated as tibbles, so the structure of the data is respected. One scenario where using a data frame instead might be when a specific column is selected which turns it into a vector, which makes the code buggy. Tibbles make subsetting more predictable. 
 
 ## Task 5: Build Your Own Tibble
 
@@ -109,7 +115,10 @@ library(tibble)
 # and one column of your choice
 
 mids_students <- tibble(
-  # Your code here
+  name = c("Amina", "Ben", "Carlos", "Diana", "Ethan"),
+  age = c(24, 27, 31, 26, 29),
+  concentration = c("Data Science", "Statistics", "Data Science", "Biostatistics", "Statistics"),
+  prior_experience = c(TRUE, FALSE, TRUE, TRUE, FALSE)
 )
 
 glimpse(mids_students)
@@ -153,14 +162,15 @@ skim(df)
 
 **Your turn:** Write a 3–5 sentence inspection summary of your chosen dataset:
 
-> *[Your summary]*
+> The penguins dataset contains 344 observations and 8 variables describing penguin species, island, physical measurements, sex, and year. It includes three species: Adelie, Chinstrap, and Gentoo. The dataset contains some missing values, especially in the sex variable, with a few missing physical measurements as well. Gentoo penguins generally have larger body mass and longer flippers than Adelie and Chinstrap penguins.
+
 
 ## Submission Checklist
 
-- [ ] Data frame vs tibble differences documented
-- [ ] glimpse() vs print() comparison explained
-- [ ] skimr questions answered with specific numbers
-- [ ] Subsetting safety question addressed
-- [ ] Custom tibble created
-- [ ] Real dataset inspected with full checklist
-- [ ] Files committed to GitHub
+- [x] Data frame vs tibble differences documented
+- [x] glimpse() vs print() comparison explained
+- [x] skimr questions answered with specific numbers
+- [x] Subsetting safety question addressed
+- [x] Custom tibble created
+- [x] Real dataset inspected with full checklist
+- [x] Files committed to GitHub
