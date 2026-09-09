@@ -47,7 +47,7 @@ str(weather, max.level = 2)
 
 **Your turn:** What fields are in the response? Is the structure flat or nested?
 
-> *[Your answer]*
+> The fields contain variables with observations of weather data within the Eastern US. The structure is nested, with some observations containing specific information within it. 
 
 ## Task 2: Convert to a Tibble
 
@@ -65,7 +65,7 @@ print(daily)
 
 **Your turn:** What is the forecasted high temperature for tomorrow? What day has the most precipitation?
 
-> *[Your answer]*
+> The forecasted high temperature for tomorrow (9/9) is 30.1 degrees Celcius, and next Monday (9/14) is projected to have the most precipitation.
 
 ## Task 3: Query a Second API
 
@@ -79,13 +79,21 @@ Choose one of these APIs and query it:
 library(httr2)
 
 # Your code here — build a request, perform it, parse the response
+resp <- request("https://opentdb.com/api.php?amount=10&category=18") |>
+  req_url_query(amount = 10, category = 18) |>
+  req_perform()
 
+trivia <- resp |> resp_body_json()
 
+str(trivia, max.level = 2)
+trivia$response_code
+length(trivia$results)
+print(trivia$results)
 ```
 
 **Your turn:** What API did you choose? How many records did you get? What did you learn about the data structure?
 
-> *[Your answer]*
+> I chose the open trivia API. I got ten records of trivia questions, of which contained the question, the answer, and category.
 
 ## Task 4: Error Handling
 

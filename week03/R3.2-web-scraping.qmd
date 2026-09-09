@@ -37,7 +37,7 @@ glimpse(states)
 
 **Your turn:** How many rows and columns does the table have? What cleaning would it need before analysis (e.g., column names, data types)?
 
-> *[Your answer]*
+> The table has 61 rows and 10 columns. I think the cleaning depends on what type of analysis needs to be done, but I think it would be good to focus on NA values and irrelevant columns.
 
 ## Task 2: Clean the Scraped Table
 
@@ -49,7 +49,17 @@ library(readr)
 # - Use clean_names() for consistent column names
 # - Convert population columns from character to numeric
 # - Remove footnote markers or special characters
-# states_clean <- states |> ...
+states_clean <- states |>
+  clean_names() |>
+  mutate(
+    across(
+      matches("population|estimate|census"),
+      parse_number
+    ),
+    across(where(is.character), trimws)
+  )
+
+glimpse(states_clean)
 ```
 
 ## Task 3: Scrape books.toscrape.com
@@ -82,7 +92,7 @@ print(books)
 
 **Your turn:** How would you convert the price text (e.g., "£51.77") to a numeric value? How would you extract just the rating word (e.g., "Three") from the rating class?
 
-> *[Your answer]*
+> You can use parse_number() to remove the currency symbol and convert the price to numeric. The rating word can be extracted by removing "star-rating " from the class string
 
 ## Task 4: Check robots.txt
 
@@ -99,13 +109,13 @@ cat(robots)
 
 **Your turn:** Does robots.txt allow scraping this site? What does the content say?
 
-> *[Your answer]*
+> The site does not publish a robots.txt file, so there are no explicit automated-access rules available there. You should still scrape responsibly by making limited requests and avoiding unnecessary server load.
 
 ## Task 5: Ethical Reflection
 
 Write 100 words on the ethics of web scraping. Address: when is it appropriate, what precautions should you take, and why does robots.txt matter?
 
-> *[Your reflection]*
+> Web scraping is appropriate when it collects publicly available information for legitimate purposes such as research, education, or analysis, while respecting the website’s rules and users. Before scraping, check the terms of service, robots.txt, and applicable laws. Make requests slowly, avoid overwhelming the server, identify your program when possible, and cache results instead of repeatedly downloading identical pages. Do not collect private, sensitive, or copyrighted material unnecessarily. robots.txt matters because it communicates which automated access site owners prefer to allow or restrict. Although it is not complete legal permission, it is an important sign of responsible scraping behavior online.
 
 ## Submission
 
