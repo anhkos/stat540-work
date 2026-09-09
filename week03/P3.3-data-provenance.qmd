@@ -1,0 +1,108 @@
+---
+title: "Exercise P3.3: Data Provenance Documentation"
+subtitle: "STAT 540 — Week 3"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will write a data card for a dataset you collected in this week's exercises. This practices the documentation and ethical awareness skills from Module 4.
+
+## Task 1: Choose a Dataset
+
+Select one dataset you collected this week (from an API query or web scraping). Briefly describe it:
+
+- **Dataset name:** *[Your answer]*
+- **How you collected it:** *[API / Scraping / Other]*
+- **Number of observations:** *[count]*
+- **Number of variables:** *[count]*
+
+## Task 2: Write a Data Card
+
+Following the template from Module 4, complete the data card below. Replace all bracketed text with your actual information.
+
+### Overview
+
+- **Name:** *[Dataset name]*
+- **Source:** *[URL or API endpoint]*
+- **Date retrieved:** *[Date you collected it]*
+- **License:** *[Look up the source's terms of use]*
+
+### Collection
+
+- **Collection method:** *[API query / Web scraping / Other]*
+- **Geographic scope:** *[What regions or populations are covered]*
+- **Time period:** *[What dates does the data span]*
+- **Sampling method:** *[How were these specific records selected]*
+
+### Variables
+
+List the key variables with their types:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| *[name]* | *[numeric/character/date/...]* | *[what it represents]* |
+| *[name]* | *[numeric/character/date/...]* | *[what it represents]* |
+| *[name]* | *[numeric/character/date/...]* | *[what it represents]* |
+
+### Known Limitations
+
+- **Missing data:** *[Describe any gaps]*
+- **Known biases:** *[Who or what might be underrepresented?]*
+- **Temporal limitations:** *[Is this a snapshot? How quickly does it become outdated?]*
+
+### Who Is Represented and Who Is Missing?
+
+Write 150–200 words addressing:
+
+1. Who or what is included in this dataset?
+2. Who or what is systematically excluded?
+3. If this data were used to make a decision, who might be harmed by the gaps?
+
+> *[Your response]*
+
+## Task 3: Bias Identification
+
+Identify at least **two specific sources of bias** in your dataset from the categories discussed in Module 4:
+
+**Bias 1:**
+
+- **Type:** *[Selection / Survivorship / Temporal / Measurement / Labeling]*
+- **Description:** *[How this bias manifests in your data]*
+- **Impact:** *[How it could affect analysis results]*
+
+**Bias 2:**
+
+- **Type:** *[Selection / Survivorship / Temporal / Measurement / Labeling]*
+- **Description:** *[How this bias manifests in your data]*
+- **Impact:** *[How it could affect analysis results]*
+
+## Task 4: Reflection
+
+In 100 words, reflect on the experience of documenting your data's provenance. Was anything surprising? Would you have noticed these limitations without the data card framework?
+
+> *[Your reflection]*
+
+## Submission Checklist
+
+- [ ] Dataset identified with collection method described
+- [ ] Complete data card filled out
+- [ ] Who is represented / who is missing section written (150–200 words)
+- [ ] Two specific biases identified with type, description, and impact
+- [ ] Reflection written
+- [ ] Committed to GitHub
+
+```bash
+git add week03/exercises/P3.3*
+git commit -m "Complete Exercise P3.3: Data provenance documentation"
+git push origin main
+```

@@ -1,0 +1,116 @@
+---
+title: "Exercise R3.2: Web Scraping with rvest"
+subtitle: "STAT 540 — Week 3"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will scrape data from web pages using R's `rvest` package, working with both HTML tables and individual elements.
+
+## Task 1: Scrape a Wikipedia Table
+
+```{r}
+library(rvest)
+library(dplyr)
+
+url <- "https://en.wikipedia.org/wiki/List_of_U.S._states_and_territories_by_population"
+page <- read_html(url)
+
+# Extract all tables
+tables <- page |> html_table()
+cat("Number of tables found:", length(tables), "\n")
+
+# Get the main population table (usually the first or second)
+states <- tables[[1]]
+glimpse(states)
+```
+
+**Your turn:** How many rows and columns does the table have? What cleaning would it need before analysis (e.g., column names, data types)?
+
+> *[Your answer]*
+
+## Task 2: Clean the Scraped Table
+
+```{r}
+library(janitor)
+library(readr)
+
+# Your cleaning code here:
+# - Use clean_names() for consistent column names
+# - Convert population columns from character to numeric
+# - Remove footnote markers or special characters
+# states_clean <- states |> ...
+```
+
+## Task 3: Scrape books.toscrape.com
+
+This site is designed for scraping practice:
+
+```{r}
+library(rvest)
+library(tibble)
+
+page <- read_html("https://books.toscrape.com")
+
+# Extract titles
+titles <- page |> html_elements("h3 a") |> html_attr("title")
+
+# Extract prices
+prices <- page |> html_elements(".price_color") |> html_text()
+
+# Extract star ratings
+ratings <- page |> html_elements("p.star-rating") |> html_attr("class")
+
+# Combine
+books <- tibble(
+  title = titles,
+  price = prices,
+  rating_class = ratings
+)
+print(books)
+```
+
+**Your turn:** How would you convert the price text (e.g., "£51.77") to a numeric value? How would you extract just the rating word (e.g., "Three") from the rating class?
+
+> *[Your answer]*
+
+## Task 4: Check robots.txt
+
+```{r}
+library(httr2)
+
+# Check what scraping is allowed
+robots <- request("https://books.toscrape.com/robots.txt") |>
+  req_perform() |>
+  resp_body_string()
+
+cat(robots)
+```
+
+**Your turn:** Does robots.txt allow scraping this site? What does the content say?
+
+> *[Your answer]*
+
+## Task 5: Ethical Reflection
+
+Write 100 words on the ethics of web scraping. Address: when is it appropriate, what precautions should you take, and why does robots.txt matter?
+
+> *[Your reflection]*
+
+## Submission
+
+```bash
+git add week03/exercises/R3.2*
+git commit -m "Complete Exercise R3.2: Web scraping with rvest"
+git push origin main
+```

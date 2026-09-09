@@ -1,0 +1,120 @@
+---
+title: "Exercise R3.1: Querying a Public REST API"
+subtitle: "STAT 540 — Week 3"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will query a public REST API using R's `httr2` package, parse the JSON response, and perform basic analysis on the retrieved data.
+
+## Task 1: Query the Open Meteo Weather API
+
+Use the Open Meteo API (no authentication required) to fetch weather data for Fayetteville, NC:
+
+```{r}
+library(httr2)
+library(dplyr)
+library(tibble)
+
+# Build the request
+resp <- request("https://api.open-meteo.com/v1/forecast") |>
+  req_url_query(
+    latitude = 35.05,
+    longitude = -78.88,
+    daily = "temperature_2m_max,temperature_2m_min,precipitation_sum",
+    timezone = "America/New_York",
+    forecast_days = 7
+  ) |>
+  req_perform()
+
+# Check status
+cat("Status:", resp_status(resp), "\n")
+
+# Parse JSON
+weather <- resp |> resp_body_json()
+str(weather, max.level = 2)
+```
+
+**Your turn:** What fields are in the response? Is the structure flat or nested?
+
+> *[Your answer]*
+
+## Task 2: Convert to a Tibble
+
+```{r}
+# Extract the daily data into a tibble
+daily <- tibble(
+  date = as.Date(unlist(weather$daily$time)),
+  temp_max = unlist(weather$daily$temperature_2m_max),
+  temp_min = unlist(weather$daily$temperature_2m_min),
+  precip = unlist(weather$daily$precipitation_sum)
+)
+
+print(daily)
+```
+
+**Your turn:** What is the forecasted high temperature for tomorrow? What day has the most precipitation?
+
+> *[Your answer]*
+
+## Task 3: Query a Second API
+
+Choose one of these APIs and query it:
+
+- **REST Countries:** `https://restcountries.com/v3.1/name/{country}`
+- **Universities:** `http://universities.hipolabs.com/search?country=United+States&name=fayetteville`
+- **Open Trivia:** `https://opentdb.com/api.php?amount=10&category=18`
+
+```{r}
+library(httr2)
+
+# Your code here — build a request, perform it, parse the response
+
+
+```
+
+**Your turn:** What API did you choose? How many records did you get? What did you learn about the data structure?
+
+> *[Your answer]*
+
+## Task 4: Error Handling
+
+Deliberately cause an error (wrong URL, bad parameter) and handle it gracefully:
+
+```{r}
+library(httr2)
+
+# Try a request that will fail
+resp <- request("https://api.github.com/users/THIS_USER_DOES_NOT_EXIST_12345") |>
+  req_error(is_error = function(resp) FALSE) |>  # Don't stop on error
+  req_perform()
+
+status <- resp_status(resp)
+cat("Status code:", status, "\n")
+
+if (status == 200) {
+  cat("Success!\n")
+} else if (status == 404) {
+  cat("Not found — check the endpoint\n")
+} else {
+  cat("Unexpected error:", status, "\n")
+}
+```
+
+## Submission
+
+```bash
+git add week03/exercises/R3.1*
+git commit -m "Complete Exercise R3.1: API queries with httr2"
+git push origin main
+```
