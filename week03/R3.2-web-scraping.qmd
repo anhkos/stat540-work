@@ -1,7 +1,7 @@
 ---
 title: "Exercise R3.2: Web Scraping with rvest"
 subtitle: "STAT 540 — Week 3"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false

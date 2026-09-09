@@ -1,7 +1,7 @@
 ---
 title: "Exercise P3.3: Data Provenance Documentation"
 subtitle: "STAT 540 — Week 3"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -21,10 +21,10 @@ In this exercise, you will write a data card for a dataset you collected in this
 
 Select one dataset you collected this week (from an API query or web scraping). Briefly describe it:
 
-- **Dataset name:** *[Your answer]*
-- **How you collected it:** *[API / Scraping / Other]*
-- **Number of observations:** *[count]*
-- **Number of variables:** *[count]*
+- **Dataset name:** Open Trivia Database: Computer Science Questions
+- **How you collected it:** API query using `httr2`
+- **Number of observations:** 10 questions
+- **Number of variables:** 6
 
 ## Task 2: Write a Data Card
 
@@ -32,17 +32,17 @@ Following the template from Module 4, complete the data card below. Replace all 
 
 ### Overview
 
-- **Name:** *[Dataset name]*
-- **Source:** *[URL or API endpoint]*
-- **Date retrieved:** *[Date you collected it]*
-- **License:** *[Look up the source's terms of use]*
+- **Name:** Open Trivia Database: Computer Science Questions
+- **Source:** `https://opentdb.com/api.php?amount=10&category=18`
+- **Date retrieved:** September 8, 2026
+- **License:** Open Trivia Database content is provided under the Creative Commons Attribution-ShareAlike 4.0 International license.
 
 ### Collection
 
-- **Collection method:** *[API query / Web scraping / Other]*
-- **Geographic scope:** *[What regions or populations are covered]*
-- **Time period:** *[What dates does the data span]*
-- **Sampling method:** *[How were these specific records selected]*
+- **Collection method:** API query requesting 10 questions from category 18 (Science: Computers)
+- **Geographic scope:** Not applicable; the questions are drawn from an international online question database.
+- **Time period:** The questions do not represent one specific time period; they are a snapshot of the database on the retrieval date.
+- **Sampling method:** The API selected 10 questions from the available computer-science category, apparently using a random selection process.
 
 ### Variables
 
@@ -50,15 +50,18 @@ List the key variables with their types:
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| *[name]* | *[numeric/character/date/...]* | *[what it represents]* |
-| *[name]* | *[numeric/character/date/...]* | *[what it represents]* |
-| *[name]* | *[numeric/character/date/...]* | *[what it represents]* |
+| category | character | The subject category assigned to each question |
+| difficulty | character | The question's difficulty level |
+| type | character | The question format, such as multiple choice or true/false |
+| question | character | The trivia question text |
+| correct_answer | character | The correct response |
+| incorrect_answers | character/list | The available incorrect responses |
 
 ### Known Limitations
 
-- **Missing data:** *[Describe any gaps]*
-- **Known biases:** *[Who or what might be underrepresented?]*
-- **Temporal limitations:** *[Is this a snapshot? How quickly does it become outdated?]*
+- **Missing data:** The API response did not contain missing fields for the retrieved questions, but some questions may have incomplete or inconsistent metadata in the larger database.
+- **Known biases:** The dataset favors questions contributed by users and categorized as computer science. It may overrepresent popular or English-language topics and particular interpretations of difficulty.
+- **Temporal limitations:** This is a snapshot of a changing database. Questions, categories, and answers may be added, edited, or removed later.
 
 ### Who Is Represented and Who Is Missing?
 
@@ -68,7 +71,7 @@ Write 150–200 words addressing:
 2. Who or what is systematically excluded?
 3. If this data were used to make a decision, who might be harmed by the gaps?
 
-> *[Your response]*
+The dataset represents ten computer-science trivia questions returned by the Open Trivia Database. It includes the question text, one correct answer, incorrect answer choices, a difficulty label, a question type, and a category label. The questions represent topics selected and contributed by users to an online trivia database, rather than a carefully designed sample of all computer-science knowledge. People, subjects, and terminology that are less common among contributors may be underrepresented. The dataset may also favor English-language educational traditions, widely known technologies, and topics that are easier to convert into short multiple-choice questions. Some groups could be harmed if this small sample were used to judge computer-science ability, educational quality, or cultural knowledge. For example, a learner could be labeled as weak because the questions emphasize unfamiliar terminology rather than practical understanding. The data also excludes open-ended reasoning, lived experience, and knowledge that cannot be tested through fixed answers. Results should therefore be treated as an example of available trivia content, not as a fair assessment of people or computer-science expertise.
 
 ## Task 3: Bias Identification
 
@@ -76,30 +79,30 @@ Identify at least **two specific sources of bias** in your dataset from the cate
 
 **Bias 1:**
 
-- **Type:** *[Selection / Survivorship / Temporal / Measurement / Labeling]*
-- **Description:** *[How this bias manifests in your data]*
-- **Impact:** *[How it could affect analysis results]*
+- **Type:** Selection
+- **Description:** The dataset contains only questions submitted to and retained by the Open Trivia Database, with this request restricted to the computer-science category.
+- **Impact:** Analysis may overrepresent popular, easily searchable, or contributor-preferred topics and may not reflect the full range of computer-science knowledge.
 
 **Bias 2:**
 
-- **Type:** *[Selection / Survivorship / Temporal / Measurement / Labeling]*
-- **Description:** *[How this bias manifests in your data]*
-- **Impact:** *[How it could affect analysis results]*
+- **Type:** Labeling
+- **Description:** Difficulty and category labels are assigned by database contributors or maintainers and may not be measured consistently.
+- **Impact:** Comparing questions by difficulty could produce misleading conclusions because the labels may reflect subjective judgments rather than performance data.
 
 ## Task 4: Reflection
 
 In 100 words, reflect on the experience of documenting your data's provenance. Was anything surprising? Would you have noticed these limitations without the data card framework?
 
-> *[Your reflection]*
+Documenting this dataset's provenance showed me that a small API response carries more assumptions than its simple structure suggests. I initially saw ten questions and six variables, but the data card made me consider who wrote the questions, who labeled their difficulty, and which topics were never included. The API makes collection reproducible because the endpoint and parameters are recorded, but a reproducible sample is not automatically representative. I was also surprised that the dataset is better suited for demonstrating JSON parsing than for measuring computer-science knowledge. Without the provenance framework, I might have treated the returned questions as neutral facts. Recording the source, date, selection process, and limitations makes the analysis more transparent and helps prevent unsupported conclusions about learners or expertise.
 
 ## Submission Checklist
 
-- [ ] Dataset identified with collection method described
-- [ ] Complete data card filled out
-- [ ] Who is represented / who is missing section written (150–200 words)
-- [ ] Two specific biases identified with type, description, and impact
-- [ ] Reflection written
-- [ ] Committed to GitHub
+- [x] Dataset identified with collection method described
+- [x] Complete data card filled out
+- [x] Who is represented / who is missing section written (150–200 words)
+- [x] Two specific biases identified with type, description, and impact
+- [x] Reflection written
+- [x] Committed to GitHub
 
 ```bash
 git add week03/exercises/P3.3*
