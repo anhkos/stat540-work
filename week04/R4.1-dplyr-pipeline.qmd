@@ -1,0 +1,112 @@
+---
+title: "Exercise R4.1: Five-Verb dplyr Pipeline"
+subtitle: "STAT 540 — Week 4"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will build a complete dplyr pipeline using the nycflights13 dataset, practicing all five core verbs plus grouping.
+
+## Task 1: Delayed Flights by Carrier
+
+Build a single piped expression that:
+
+1. Filters to flights with arrival delay greater than 0
+2. Groups by carrier
+3. Computes: average delay, median delay, number of flights, and percent more than 1 hour late
+4. Sorts by average delay descending
+
+```{r}
+library(nycflights13)
+library(dplyr)
+
+# Your pipeline here:
+flights |>
+  filter(arr_delay > 0) |>
+  group_by(carrier) |>
+  summarize(
+    avg_delay = mean(arr_delay, na.rm = TRUE),
+    median_delay = median(arr_delay, na.rm = TRUE),
+    n = n(),
+    pct_over_60 = mean(arr_delay > 60, na.rm = TRUE) * 100
+  ) |>
+  arrange(desc(avg_delay))
+```
+
+**Your turn:** Which carrier has the highest average delay? Which has the most flights but is still late frequently?
+
+> *[Your answer]*
+
+## Task 2: Custom Analysis Question
+
+Write your own analysis question about the flights data, then answer it with a dplyr pipeline. Your pipeline must use at least 4 of the 5 verbs (filter, select, mutate, arrange, summarize).
+
+**My question:** Among routes (origin-destination pairs) flown at least 100 times in 2013, which have the best on-time performance, as measured by lowest average arrival delay?
+
+```{r}
+# Your pipeline here:
+flights |>
+  filter(!is.na(arr_delay)) |>
+  select(origin, dest, arr_delay) |>
+  mutate(route = paste(origin, dest, sep = "-")) |>
+  group_by(route) |>
+  summarize(
+    avg_arr_delay = mean(arr_delay),
+    n = n()
+  ) |>
+  filter(n >= 100) |>
+  arrange(avg_arr_delay)
+```
+
+**Your answer:** As seen with the results, most of the flights with the best on-time performance tend to land early, and are long haul flights, such as  EWR-SNA (Newark→Orange County CA), JFK-HNL (Honolulu), JFK-STT (St. Thomas USVI), which suggests that airlines tend to pad longer flights with extra time on schedule, making it more likely they arrive earlier than their scheduled time.  
+
+## Task 3: Reshape World Bank-Style Data
+
+```{r}
+library(tidyr)
+
+# Simulated wide data
+gdp_wide <- tibble(
+  country = c("USA", "China", "India", "Brazil", "Germany"),
+  `2020` = c(21.0, 14.7, 2.7, 1.4, 3.8),
+  `2021` = c(23.3, 17.7, 3.2, 1.6, 4.2),
+  `2022` = c(25.4, 17.9, 3.4, 1.9, 4.1),
+  `2023` = c(26.9, 18.5, 3.7, 2.1, 4.5)
+)
+
+# Pivot to long format
+gdp_long <- gdp_wide |>
+  pivot_longer(cols = -country, names_to = "year", values_to = "gdp_trillion") |>
+  mutate(year = as.integer(year))
+
+print(gdp_long)
+```
+
+**Your turn:** Which country had the highest GDP growth (absolute change) from 2020 to 2023? Write a pipeline to compute this.
+
+```{r}
+# Your code here:
+gdp_long |>
+  filter(year %in% c(2020, 2023)) |>
+  pivot_wider(names_from = year, values_from = gdp_trillion, names_prefix = "gdp_") |>
+  mutate(growth = gdp_2023 - gdp_2020) |>
+  arrange(desc(growth))
+```
+
+## Submission
+
+```bash
+git add week04/exercises/R4.1*
+git commit -m "Complete Exercise R4.1: dplyr pipeline with flights data"
+git push origin main
+```

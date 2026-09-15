@@ -1,0 +1,107 @@
+---
+title: "Exercise RP4.2: Wrangling Challenge (R or Python)"
+subtitle: "STAT 540 — Week 4"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will take a messy dataset and produce a clean, tidy version. You may use R or Python (or both). The focus is on **documenting your reasoning** — not just writing code.
+
+## The Messy Dataset
+
+Download the messy dataset provided by the instructor (or use the Palmer Penguins dataset with intentionally introduced messiness).
+
+```{r}
+library(palmerpenguins)
+library(dplyr)
+library(tidyr)
+
+# Start with penguins — it already has some real-world messiness
+df <- penguins
+glimpse(df)
+
+# How messy is it?
+cat("Missing values per column:\n")
+colSums(is.na(df))
+```
+
+## Task 1: Data Quality Assessment
+
+Before cleaning, assess the current state:
+
+1. How many rows and columns?
+2. Which columns have missing values? What percentage?
+3. Are any columns the wrong type?
+4. Are there any obvious outliers or impossible values?
+
+> *[Your assessment]*
+
+## Task 2: Cleaning Pipeline
+
+Build a step-by-step cleaning pipeline. **Comment every transformation** explaining WHY you made that choice:
+
+```{r}
+# Example structure — modify for your data:
+df_clean <- df |>
+  # Step 1: [Why]
+  # ... |>
+  # Step 2: [Why]
+  # ... |>
+  # Step 3: [Why]
+  # ...
+  identity()   # Placeholder — remove this
+
+glimpse(df_clean)
+```
+
+## Task 3: Before/After Comparison
+
+Show summary statistics before and after cleaning:
+
+```{r}
+library(skimr)
+
+cat("=== BEFORE ===\n")
+skim(df)
+
+cat("\n=== AFTER ===\n")
+skim(df_clean)
+```
+
+**Your turn:** What changed? What improved? Did you lose any data, and was that loss justified?
+
+> *[Your answer]*
+
+## Task 4: Document Your Decisions
+
+For each cleaning step, complete this table:
+
+| Step | What You Did | Why | What You Considered But Rejected |
+|------|-------------|-----|--------------------------------|
+| 1 | *[action]* | *[reason]* | *[alternative]* |
+| 2 | *[action]* | *[reason]* | *[alternative]* |
+| 3 | *[action]* | *[reason]* | *[alternative]* |
+
+## Submission Checklist
+
+- [ ] Data quality assessment completed
+- [ ] Cleaning pipeline with comments explaining every step
+- [ ] Before/after summary statistics shown
+- [ ] Decision documentation table filled in
+- [ ] Committed to GitHub
+
+```bash
+git add week04/exercises/RP4.2*
+git commit -m "Complete Exercise RP4.2: Wrangling challenge with documented decisions"
+git push origin main
+```
