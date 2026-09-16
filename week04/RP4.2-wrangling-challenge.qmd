@@ -1,7 +1,7 @@
 ---
 title: "Exercise RP4.2: Wrangling Challenge (R or Python)"
 subtitle: "STAT 540 — Week 4"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -44,22 +44,34 @@ Before cleaning, assess the current state:
 3. Are any columns the wrong type?
 4. Are there any obvious outliers or impossible values?
 
-> *[Your assessment]*
+> 1. There are 344 rows and 8 columns. 
+2. The bill length, bill depth, flipper length, body mass, and sex columns have missing values.
+3. All of the columns seem to be of a reasonable type. 
+4. Not any that I can tell of. 
 
 ## Task 2: Cleaning Pipeline
 
 Build a step-by-step cleaning pipeline. **Comment every transformation** explaining WHY you made that choice:
 
 ```{r}
-# Example structure — modify for your data:
 df_clean <- df |>
-  # Step 1: [Why]
-  # ... |>
-  # Step 2: [Why]
-  # ... |>
-  # Step 3: [Why]
-  # ...
-  identity()   # Placeholder — remove this
+  # Step 1: Drop the 2 rows missing ALL four core measurements (bill length/depth,
+  # flipper length, body mass). These rows carry zero usable morphometric data —
+  # imputing them would mean fabricating values, not cleaning, so removal is the
+  # honest choice.
+  filter(
+    !is.na(bill_length_mm), !is.na(bill_depth_mm),
+    !is.na(flipper_length_mm), !is.na(body_mass_g)
+  ) |>
+  # Step 2: Recode missing `sex` to an explicit "unknown" level instead of dropping
+  # those rows. These 9 penguins still have valid measurements — sex just couldn't
+  # be determined in the field, so discarding them would throw away good data for
+  # a variable we may not even be analyzing.
+  mutate(sex = factor(if_else(is.na(sex), "unknown", as.character(sex)))) |>
+  # Step 3: Cast `year` to a factor. It's used as a categorical study-year label
+  # (2007/2008/2009), not a continuous quantity, so treating it as numeric would
+  # invite nonsensical operations like averaging years.
+  mutate(year = factor(year))
 
 glimpse(df_clean)
 ```
@@ -80,7 +92,7 @@ skim(df_clean)
 
 **Your turn:** What changed? What improved? Did you lose any data, and was that loss justified?
 
-> *[Your answer]*
+> We went from 344 rows to 342; only the 2 rows with no morphometric measurements at all were dropped, so that loss is justified since those rows had nothing to analyze. `bill_length_mm`, `bill_depth_mm`, `flipper_length_mm`, and `body_mass_g` now have zero missing values instead of a few each. `sex` also shows zero `NA`s in the after-summary, but no measurement data was lost for it — the 9 previously-missing values were recoded to an explicit "unknown" category rather than dropped, so those rows are still fully usable for everything except sex-based comparisons. `year` moved from a numeric to a factor summary, which is more appropriate since it's a study-year label, not a quantity to average.
 
 ## Task 4: Document Your Decisions
 
@@ -88,17 +100,17 @@ For each cleaning step, complete this table:
 
 | Step | What You Did | Why | What You Considered But Rejected |
 |------|-------------|-----|--------------------------------|
-| 1 | *[action]* | *[reason]* | *[alternative]* |
-| 2 | *[action]* | *[reason]* | *[alternative]* |
-| 3 | *[action]* | *[reason]* | *[alternative]* |
+| 1 | Dropped the 2 rows missing all four core measurements (bill length/depth, flipper length, body mass) | These rows have zero usable morphometric data, nothing to impute from | Imputing (e.g., with column means): rejected because there's no real information in the row to base an estimate on, so it would fabricate data |
+| 2 | Recoded missing `sex` values to an explicit `"unknown"` factor level instead of dropping the rows | Those 9 penguins still have valid measurements; the missingness is in a field-observation variable, not the core data | Dropping rows with missing `sex`: rejected because it would discard good measurement data just to keep one column complete |
+| 3 | Cast `year` from numeric to a factor | `year` is a categorical study-year label (2007/2008/2009), not a continuous quantity | Leaving it numeric: rejected because it invites meaningless operations like averaging years |
 
 ## Submission Checklist
 
-- [ ] Data quality assessment completed
-- [ ] Cleaning pipeline with comments explaining every step
-- [ ] Before/after summary statistics shown
-- [ ] Decision documentation table filled in
-- [ ] Committed to GitHub
+- [x] Data quality assessment completed
+- [x] Cleaning pipeline with comments explaining every step
+- [x] Before/after summary statistics shown
+- [x] Decision documentation table filled in
+- [x] Committed to GitHub
 
 ```bash
 git add week04/exercises/RP4.2*
