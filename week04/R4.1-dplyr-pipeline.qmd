@@ -1,7 +1,7 @@
 ---
 title: "Exercise R4.1: Five-Verb dplyr Pipeline"
 subtitle: "STAT 540 — Week 4"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -45,7 +45,7 @@ flights |>
 
 **Your turn:** Which carrier has the highest average delay? Which has the most flights but is still late frequently?
 
-> *[Your answer]*
+> OO has the highest average delay. 9E has the most flights at 24,484 but is still often late. 
 
 ## Task 2: Custom Analysis Question
 
