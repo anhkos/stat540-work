@@ -1,7 +1,7 @@
 ---
 title: "Exercise RP5.2: Creative Feature Engineering"
 subtitle: "STAT 540 — Week 5"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -26,13 +26,27 @@ You may use the Online Retail dataset from UCI, a similar e-commerce dataset, or
 ## Task 1: Load and Inspect
 
 ```{r}
-# R version (or use Python — your choice)
-# Download from UCI or use a provided sample
 library(readr)
 library(dplyr)
+library(purrr)
 
-# retail <- read_csv("online_retail.csv")
-# glimpse(retail)
+# Simulating a transactions dataset rather than downloading UCI Online Retail,
+# so the exercise is self-contained and reproducible.
+set.seed(540)
+n_customers <- 300
+reference_date <- as.Date("2024-01-01")
+
+retail <- map_dfr(1:n_customers, function(id) {
+  n_orders <- sample(1:20, 1)
+  order_dates <- sort(reference_date - sample(1:730, n_orders, replace = TRUE))
+  tibble(
+    customer_id = id,
+    order_date = order_dates,
+    order_amount = round(rlnorm(n_orders, meanlog = 3.5, sdlog = 0.6), 2)
+  )
+})
+
+glimpse(retail)
 ```
 
 ## Task 2: Engineer 5 Features
@@ -41,15 +55,35 @@ Create at least 5 engineered features. For each, explain your **hypothesis** —
 
 | # | Feature Name | How Computed | Hypothesis |
 |---|-------------|-------------|------------|
-| 1 | *[name]* | *[computation]* | *[why it matters]* |
-| 2 | *[name]* | *[computation]* | *[why it matters]* |
-| 3 | *[name]* | *[computation]* | *[why it matters]* |
-| 4 | *[name]* | *[computation]* | *[why it matters]* |
-| 5 | *[name]* | *[computation]* | *[why it matters]* |
+| 1 | `recency_days` | Days between `reference_date` and the customer's most recent order | Supposedly, customers who haven't bought in a long time are the most likely to have already churned |
+| 2 | `frequency` | Count of orders per customer | Habitual, frequent buyers are more embedded in the relationship and less likely to leave than one-time or occasional shoppers |
+| 3 | `avg_order_value` | Mean `order_amount` per customer | Distinguishes low-value browsers from high-value customers, which is useful for prioritizing *which* churn is worth acting on, not just predicting it |
+| 4 | `purchase_interval_cv` | Coefficient of variation (sd/mean) of the gaps in days between a customer's consecutive orders | Captures rhythm, not just volume; a customer with an erratic, unpredictable buying cadence (high CV) may be more disengaged than one with a steady, predictable habit, even at the same frequency |
+| 5 | `spend_trend` | % change in average order value between a customer's earlier orders and their more recent orders | A customer whose spending is declining relative to their *own* history is showing early churn risk before recency alone would flag it |
 
 ```{r}
 # Your feature engineering code here:
+features <- retail |>
+  arrange(customer_id, order_date) |>
+  group_by(customer_id) |>
+  summarize(
+    recency_days = as.numeric(reference_date - max(order_date)),
+    frequency = n(),
+    avg_order_value = mean(order_amount),
+    purchase_interval_cv = {
+      gaps <- as.numeric(diff(order_date))
+      if (length(gaps) >= 2) sd(gaps) / mean(gaps) else NA_real_
+    },
+    spend_trend = {
+      half <- ceiling(n() / 2)
+      early <- mean(order_amount[1:half])
+      late  <- mean(order_amount[(half + 1):n()])
+      if (n() >= 3) (late - early) / early * 100 else NA_real_
+    },
+    .groups = "drop"
+  )
 
+glimpse(features)
 ```
 
 ## Task 3: Before/After Summary
@@ -58,31 +92,35 @@ Show summary statistics for your engineered features:
 
 ```{r}
 # Your code to show summary stats of the new features:
+library(skimr)
 
+skim(features)
 ```
+
+`purchase_interval_cv` and `spend_trend` will show `NA` for customers with fewer than 3 orders — that's expected, since there aren't enough transactions to measure a gap pattern or a before/after trend for them, not a bug.
 
 ## Task 4: Rank Your Features
 
 Which of your 5 features do you expect to be most useful for predicting churn? Rank them and explain your reasoning (1 = most useful):
 
-1. *[Feature]* — *[Why]*
-2. *[Feature]* — *[Why]*
-3. *[Feature]* — *[Why]*
-4. *[Feature]* — *[Why]*
-5. *[Feature]* — *[Why]*
+1. `recency_days` — Thus one is the single strongest classic churn signal; a customer who hasn't purchased in months is already showing the behavior we're trying to predict, almost by definition.
+2. `spend_trend` — A leading indicator rather than a lagging one: it can flag a customer sliding toward churn *before* their recency gets bad enough to notice, by catching the decline in their own spending pattern.
+3. `frequency` — A solid engagement measure, but it's an aggregate over the customer's whole history, so it reacts slowly to recent changes compared to recency or trend.
+4. `purchase_interval_cv` — Genuinely informative about behavioral consistency, but noisier and undefined for low-order customers, which limits how broadly it applies.
+5. `avg_order_value` — Least directly tied to churn itself — a big spender can still leave — so it's more useful for prioritizing *which* churn matters than for predicting churn in the first place.
 
 ## Task 5: Reflection
 
 In 100 words, reflect: How did domain thinking (understanding the business context) change what features you created compared to purely mechanical transformations?
 
-> *[Your reflection]*
+> Purely mechanical feature engineering would have stopped at aggregates such as total spend, order count, average value, treating each customer as a static summary. Thinking about *why* a customer churns pushed me toward features that capture change over time instead: `spend_trend` asks whether someone is pulling back relative to their own past, and `purchase_interval_cv` asks whether their buying rhythm is destabilizing. Neither is a transformation you'd stumble into mechanically; they came from imagining what an actual disengaging customer's data would look like before they fully stop buying, not just describing what they've already done.
 
 ## Submission Checklist
 
-- [ ] Dataset loaded and inspected
-- [ ] 5 features engineered with hypotheses
-- [ ] Code runs and produces the features
-- [ ] Summary statistics shown
-- [ ] Features ranked with reasoning
-- [ ] Reflection written
-- [ ] Committed to GitHub
+- [x] Dataset loaded and inspected
+- [x] 5 features engineered with hypotheses
+- [x] Code runs and produces the features
+- [x] Summary statistics shown
+- [x] Features ranked with reasoning
+- [x] Reflection written
+- [x] Committed to GitHub
