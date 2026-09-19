@@ -1,0 +1,88 @@
+---
+title: "Exercise RP5.2: Creative Feature Engineering"
+subtitle: "STAT 540 — Week 5"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will apply creative feature engineering to a real dataset. The goal is to think like a domain expert — not just apply transformations mechanically.
+
+## The Scenario
+
+You work for an e-commerce company. Given a dataset of customer transactions, your task is to engineer features that could help predict **customer churn** (whether a customer stops buying).
+
+You may use the Online Retail dataset from UCI, a similar e-commerce dataset, or simulate one.
+
+## Task 1: Load and Inspect
+
+```{r}
+# R version (or use Python — your choice)
+# Download from UCI or use a provided sample
+library(readr)
+library(dplyr)
+
+# retail <- read_csv("online_retail.csv")
+# glimpse(retail)
+```
+
+## Task 2: Engineer 5 Features
+
+Create at least 5 engineered features. For each, explain your **hypothesis** — why you believe this feature would help predict churn.
+
+| # | Feature Name | How Computed | Hypothesis |
+|---|-------------|-------------|------------|
+| 1 | *[name]* | *[computation]* | *[why it matters]* |
+| 2 | *[name]* | *[computation]* | *[why it matters]* |
+| 3 | *[name]* | *[computation]* | *[why it matters]* |
+| 4 | *[name]* | *[computation]* | *[why it matters]* |
+| 5 | *[name]* | *[computation]* | *[why it matters]* |
+
+```{r}
+# Your feature engineering code here:
+
+```
+
+## Task 3: Before/After Summary
+
+Show summary statistics for your engineered features:
+
+```{r}
+# Your code to show summary stats of the new features:
+
+```
+
+## Task 4: Rank Your Features
+
+Which of your 5 features do you expect to be most useful for predicting churn? Rank them and explain your reasoning (1 = most useful):
+
+1. *[Feature]* — *[Why]*
+2. *[Feature]* — *[Why]*
+3. *[Feature]* — *[Why]*
+4. *[Feature]* — *[Why]*
+5. *[Feature]* — *[Why]*
+
+## Task 5: Reflection
+
+In 100 words, reflect: How did domain thinking (understanding the business context) change what features you created compared to purely mechanical transformations?
+
+> *[Your reflection]*
+
+## Submission Checklist
+
+- [ ] Dataset loaded and inspected
+- [ ] 5 features engineered with hypotheses
+- [ ] Code runs and produces the features
+- [ ] Summary statistics shown
+- [ ] Features ranked with reasoning
+- [ ] Reflection written
+- [ ] Committed to GitHub
