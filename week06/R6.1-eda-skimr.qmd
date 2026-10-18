@@ -1,0 +1,95 @@
+---
+title: "Exercise R6.1: EDA with skimr and Outlier Detection"
+subtitle: "STAT 540 — Week 6"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will perform comprehensive EDA on a real dataset using skimr and apply outlier detection techniques.
+
+## Task 1: Comprehensive Summary with skimr
+
+Choose a dataset: `diamonds` (ggplot2), `penguins` (palmerpenguins), or another approved dataset.
+
+```{r}
+library(skimr)
+library(dplyr)
+library(ggplot2)
+
+# Full skim
+skim(diamonds)
+
+# Grouped skim
+diamonds |>
+  group_by(cut) |>
+  skim(price, carat, depth)
+```
+
+**Your turn:** From the skim output, identify three notable findings (e.g., skewed distributions, large ranges, differences across groups):
+
+1. *The prices are heavily skewed right, as seen from the second table. The mean is well above the median (about ~$1.5k USD), meaning a few expensive diamonds pull the average up.*
+2. *As seen from the third table, better cuts are not more expensive on average. Ideal diamonds have the lowest mean price. This shows us that the biggest driver of diamond price is carat weight, which suggests that bigger stones get a less than ideal cut and have more of the "rough" material.*
+3. *We can see that the mean depth is highest for Fair cuts and falls as the cut quality improves. This is consistent with the diamonds being poorly proportioned.*
+
+## Task 2: Outlier Detection
+
+Apply the IQR rule to the `price` column:
+
+```{r}
+Q1 <- quantile(diamonds$price, 0.25)
+Q3 <- quantile(diamonds$price, 0.75)
+IQR_val <- Q3 - Q1
+
+lower <- Q1 - 1.5 * IQR_val
+upper <- Q3 + 1.5 * IQR_val
+
+outliers <- diamonds |>
+  filter(price < lower | price > upper)
+
+cat("Outliers:", nrow(outliers), "of", nrow(diamonds), "rows\n")
+cat("Percentage:", round(nrow(outliers) / nrow(diamonds) * 100, 1), "%\n")
+```
+
+**Your turn:** Should these outliers be removed, kept, or transformed? Justify your decision in 2–3 sentences:
+
+> *I think the outliers should be kept because, as we discovered earlier, the diamond price heavily skews right. Removing them would discard real information about such diamonds, so I think a more appropriate response to reduce the skew and influence of the tail would be to perform a log transform of the price.*
+
+## Task 3: Grouped Analysis
+
+Pick two categorical variables and explore how a numeric variable differs across groups:
+
+```{r}
+# Example: price by cut and clarity
+diamonds |>
+  group_by(cut, clarity) |>
+  summarize(
+    median_price = median(price),
+    mean_price = mean(price),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  arrange(desc(median_price)) |>
+  head(15)
+```
+
+**Your turn:** Do you notice anything surprising in the grouped results? (Hint: do "better" cuts always cost more? Why might they not?)
+
+> *As the earlier table suggested, carat weight is the largest driver of diamond price, so better cuts do not always cost more. What surprised me what the fact that the most expensive groups have the worst clarity. I think it lines up with the explanation that diamonds with a higher carat weight have a higher composition of rough material.*
+
+## Submission
+
+```bash
+git add week06/exercises/R6.1*
+git commit -m "Complete Exercise R6.1: EDA with skimr and outlier detection"
+git push origin main
+```

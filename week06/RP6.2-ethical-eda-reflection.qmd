@@ -1,0 +1,91 @@
+---
+title: "Exercise RP6.2: Ethical EDA Reflection"
+subtitle: "STAT 540 — Week 6"
+author: "Sokhna Amar"
+date: last-modified
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will perform EDA on a dataset with demographic variables and reflect on what findings could be misleading without proper context. No code is required — this is a writing exercise.
+
+## Task 1: Choose a Demographic Dataset
+
+Use one of the following:
+
+- **Adult/Census Income** (UCI ML Repository) — predicts whether income exceeds $50K
+- **COMPAS Recidivism** — criminal justice risk scores
+- **Titanic** — survival by passenger class, sex, age
+
+Briefly describe the dataset you chose:
+
+> *I picked the Adult/Census Income dataset from UCI's ML Repository. It catalogs 48,842 instances of adults according to 14 features, for the intent of gauging the likelihood of an adult's income exceeding $50k.*
+
+## Task 2: Representativeness Assessment
+
+Answer these questions about your chosen dataset:
+
+1. **Who collected this data and when?**
+> *This data was collected from the 1994 U.S Census Database, and was extracted by someone named Barry Becker.*
+
+2. **What population does this dataset represent?**
+> *This population represents Americans, including those who have immigrated from select regions.*
+
+3. **Who is likely underrepresented or missing entirely?**
+> *From my observations, the dataset excludes Americans who immigrated from Africa, and Eastern European countries (save for Yugoslavia) are excluded as well.*
+
+4. **If someone drew conclusions about "all Americans" (or the relevant broader population) from this data, what would be wrong?**
+> *This dataset is from 1994, which makes it outdated and irrelevant for studying modern labor markets or societal structures. $50k is also no longer a sufficient middle-class marker, at least not to the degree it was back then. The dataset also features a disproportionate amount of men and white individuals, which is not representative of the reality of Americans.*
+
+## Task 3: Misleading Findings
+
+Perform (or imagine performing) EDA on this dataset. Identify at least **two findings** that could be **misleading if presented without context**:
+
+### Finding 1
+
+- **The finding:** *The dataset could find that a significantly higher percentage of men earn over $50k annually compared to women.*
+- **Why it could mislead:** *A naive interpretation of this data might conclude that women are inherently less productive, qualified, or driven pursue high-paying careers.*
+- **How to report it responsibly:** *The findings must be reported as a reflection of historical wage inequality and workforce participation rates from over three decades ago, in a time where women were heavily concentrated in lower-paying administrative and service roles, and were vastly underrepresented in higher-paying fields.*
+
+### Finding 2
+
+- **The finding:** *The largest demographic group in the high earners category (>$50k) are 'Husband's.*
+- **Why it could mislead:** *This finding could lead to the conclusion that marriage magically boosts a man's economic productivity, when in reality this suggests compounding demographic bias.*
+- **How to report it responsibly:** *It should be clarified that this is an artifact of societal norms in 1994 and census collection methodology. In 1994, the "head of household" making the primary income was overwhelmingly designated as the husband if a traditional married couple was surveyed.*
+
+## Task 4: Simpson's Paradox Candidate
+
+Identify at least one variable pair in your dataset that might exhibit Simpson's Paradox when grouped by a third variable:
+
+- **Variables:** `hours-per-week` (X) and `income` percentage >50K (Y)
+- **Potential grouping variable:** `marital-status` (Z) (specifically *Never-married* vs. *Married-civ-spouse*)
+- **Why you suspect Simpson's Paradox:** In the aggregate dataset, working more hours per week is strongly associated with a higher probability of earning >50K. However, *Never-married* individuals tend to be younger, entry-level workers who may work long hours but have low baseline rates of high income. *Married-civ-spouse* individuals represent a more career-established demographic with a much higher base rate of making >50K. Conflating these two distinct demographic groups can distort the apparent return on working extra hours.
+- **Did you check? What did you find?** Yes. In the aggregate data, there is a steady upward trend where a higher percentage of people make >50K as hours increase. However, when stratified by `marital-status`, the trend flattens significantly for the *Never-married* cohort—showing that working extreme overtime hours does not yield the same high-income probability spike for them as it does in the combined data. The aggregate trend is artificially pulled upward because the high-earning *Married* cohort heavily populates the standard and upper working-hour brackets, masking the true, flatter economic trajectory of younger, single workers.
+
+## Task 5: Reflection (250 words)
+
+Write a 250-word reflection addressing:
+
+- What did you learn about the limitations of this dataset?
+- How could the EDA findings, if reported without caveats, lead to harmful decisions?
+- What is one specific practice you will adopt in your own EDA work going forward?
+
+> *In this exercise, I closely examined the Adults dataset from UCI. I've actually done work on this dataset before, and I previously came to the conclusion that the data suggested that there was a positive correlation between marital status and income. I now, upon scrutinizing it more heavily, know that this dataset is not necessarily reflective of the material reality of Americans. This dataset, having been curated from the 1994 census, is largely outdated, and many Americans have now come of age, thus shifting what the data represents. 
+Additionally, it does not accurately reflect the diverse population of the United States, even if/when one argues that the nation was "less" diverse back in the 90s.
+The purpose of this dataset is to look at demographic features to predict whether one's income exceeds $50k. When performing data analysis on this set, it is important to report the caveats that 1) this is historical data and 2) it skews heavily white, male, and married. If these findings are reported without caveats, they could lead to profoundly harmful decisions. For instance, an automated hiring or credit-scoring algorithm trained on this data would misinterpret historical systemic barriers as baseline individual capability. It would actively penalize single women and minority applicants, replicating 1990s structural inequality under the guise of "objective" data.
+Going forward, the specific practice I will adopt in my own EDA work is to always cross-examine my demographic variables for confounding factors and Simpson’s Paradox before drawing conclusions. I will actively investigate why a correlation exists rather than accepting it at face value, ensuring that historical context and data skews are explicitly documented in my final models.*
+
+## Submission Checklist
+
+- [x] Dataset identified with source and description
+- [x] Four representativeness questions answered
+- [x] Two potentially misleading findings with context
+- [x] Simpson's Paradox candidate identified
+- [x] 250-word reflection written
+- [ ] Committed to GitHub

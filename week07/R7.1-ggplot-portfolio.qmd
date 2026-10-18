@@ -1,0 +1,168 @@
+---
+title: "Exercise R7.1: ggplot2 Visualization Portfolio"
+subtitle: "STAT 540 — Week 7"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: true
+  warning: false
+  message: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will create five distinct chart types in ggplot2 and redesign one misleading chart. This is a lighter exercise since Project 1 is due this week.
+
+## Task 1: Five Chart Types
+
+Using the `diamonds` dataset (or another approved dataset), create one of each:
+
+### 1. Histogram
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+ggplot(diamonds, aes(x = price)) +
+  geom_histogram(binwidth = 500, fill = "steelblue", color = "white") +
+  scale_x_continuous(labels = scales::dollar) +
+  labs(
+    title = "Diamond Prices Are Strongly Right-Skewed",
+    x = "Price (USD)",
+    y = "Number of diamonds"
+  ) +
+  theme_minimal()
+```
+
+This histogram shows that most diamonds sell for under about $5,000, with a long tail of expensive stones. I chose a $500 bin width because it is coarse enough to be smooth but fine enough to show where the mass of the distribution sits.
+
+### 2. Scatterplot with Trend Line
+
+```{r}
+set.seed(540)
+
+diamonds |>
+  slice_sample(n = 5000) |>
+  ggplot(aes(x = carat, y = price, color = cut)) +
+  geom_point(alpha = 0.4, size = 1) +
+  geom_smooth(aes(group = 1), method = "loess", formula = y ~ x,
+              color = "black", se = TRUE) +
+  scale_y_continuous(labels = scales::dollar) +
+  scale_color_viridis_d(option = "plasma") +
+  labs(
+    title = "Price Rises Steeply and Non-linearly with Carat",
+    x = "Carat",
+    y = "Price (USD)",
+    color = "Cut"
+  ) +
+  theme_minimal()
+```
+
+This scatterplot shows price increasing faster than linearly with carat weight, with cut adding some variation at a given size. I plotted a 5,000-row random sample with transparency to reduce overplotting, and drew one overall trend line rather than one per cut so the main pattern stays clear.
+
+### 3. Boxplot
+
+```{r}
+ggplot(diamonds, aes(x = clarity, y = price, fill = clarity)) +
+  geom_boxplot(outlier.alpha = 0.2, show.legend = FALSE) +
+  scale_y_log10(labels = scales::dollar) +
+  scale_fill_viridis_d() +
+  labs(
+    title = "Price by Clarity (Log Scale)",
+    x = "Clarity (worst to best)",
+    y = "Price (USD, log scale)"
+  ) +
+  theme_minimal()
+```
+
+This boxplot compares price distributions across clarity grades. Median price does not rise with clarity, which is counterintuitive; better-clarity diamonds in this data tend to be smaller, so carat is likely confounding the comparison. I used a log scale because prices are heavily skewed and the boxes would otherwise be squashed at the bottom.
+
+### 4. Faceted Plot
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price)) +
+  geom_point(alpha = 0.1, color = "darkgreen") +
+  facet_wrap(~ cut, nrow = 2) +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(
+    title = "Carat vs. Price Relationship Across Cuts",
+    x = "Carat",
+    y = "Price (USD)"
+  ) +
+  theme_minimal()
+```
+
+This faceted plot shows the carat–price relationship separately for each cut grade, and the overall shape is similar in every panel. I used small multiples with shared scales instead of color so panels can be compared directly without points overlapping.
+
+### 5. Heatmap or Bar Chart
+
+```{r}
+diamonds |>
+  group_by(cut, color) |>
+  summarise(mean_price = mean(price), .groups = "drop") |>
+  ggplot(aes(x = color, y = cut, fill = mean_price)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = scales::dollar(mean_price, accuracy = 1)),
+            color = "white", size = 3) +
+  scale_fill_viridis_c(option = "magma", labels = scales::dollar,
+                       end = 0.85) +
+  labs(
+    title = "Average Price by Cut and Color",
+    x = "Color (D = best, J = worst)",
+    y = "Cut",
+    fill = "Mean price"
+  ) +
+  theme_minimal()
+```
+
+This heatmap shows mean price for every cut-by-color combination; averages tend to be higher for the lower color grades (I, J), probably because those diamonds are larger on average. I printed the values in each tile and used a perceptually uniform scale so the numbers and colors tell the same story.
+
+## Task 2: Redesign a Bad Chart
+
+Find a misleading or poorly designed chart online (news, social media, report).
+
+1. **Include or describe the original chart:** *[Replace with your chosen chart's source or screenshot. The chart below is a stand-in: a typical news-style bar chart with a truncated y-axis, built from made-up illustrative numbers.]*
+2. **What is wrong with it:** The y-axis starts at 94% instead of 0%, so a difference of about 2 percentage points looks like the bars differ several-fold. Bars encode value by length, so truncating the axis breaks that encoding.
+3. **Your improved version:**
+
+```{r}
+# Illustrative data approximating a truncated-axis bar chart
+rates <- data.frame(
+  year = factor(c("2022", "2023", "2024")),
+  rate = c(94.8, 96.1, 97.0)
+)
+
+# Original (misleading): truncated axis
+ggplot(rates, aes(year, rate)) +
+  geom_col(fill = "firebrick") +
+  coord_cartesian(ylim = c(94, 97.5)) +
+  labs(title = "ORIGINAL: Graduation rate 'soars'", x = NULL, y = "Rate (%)")
+
+# Redesign: full zero baseline, direct labels, honest title
+ggplot(rates, aes(year, rate)) +
+  geom_col(fill = "steelblue", width = 0.6) +
+  geom_text(aes(label = paste0(rate, "%")), vjust = -0.5) +
+  scale_y_continuous(limits = c(0, 105), expand = c(0, 0)) +
+  labs(
+    title = "Graduation rate rose about 2 points over three years",
+    x = NULL,
+    y = "Graduation rate (%)"
+  ) +
+  theme_minimal()
+```
+
+4. **What you changed and why:** I restored the y-axis to start at 0 so bar length is proportional to value, added direct value labels so readers can see the actual numbers, and replaced the sensational title with one that states the real size of the change. If the small change is the point, a line chart with a labeled, non-zero axis would also be honest, since position rather than length encodes value there.
+
+## Submission
+
+```bash
+git add week07/exercises/R7.1*
+git commit -m "Complete Exercise R7.1: ggplot2 visualization portfolio"
+git push origin main
+```

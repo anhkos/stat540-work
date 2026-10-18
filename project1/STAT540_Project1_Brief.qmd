@@ -1,0 +1,394 @@
+---
+title: "Project 1: Exploratory Data Analysis & Visualization"
+subtitle: "STAT 540 — Foundations of Data Science"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+# Load all packages here
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(skimr)
+library(tidyr)
+# Add any additional packages you need
+```
+
+::: callout-important
+## Project 1 — Instructions
+
+**Weight:** 15% of final grade \| **Assigned:** Week 5 \| **Due:** Week 7
+
+**Submit:** Push to your GitHub repository and submit the URL via the Project 1 assignment on Canvas. Your repo must contain this `.qmd` file, the rendered `.html`, your data (or download instructions), and a `README.md`.
+
+**How to use this file:** This document is both the assignment instructions AND your workspace. Each section contains requirements in blue callout boxes followed by space for your code and writing. Fill in the code chunks and replace all `> *[Your answer]*` placeholders with your own prose. When finished, change `execute: enabled: false` to `execute: enabled: true` in the YAML header and render.
+:::
+
+## Choose Your Dataset
+
+::: callout-note
+## Instructions
+
+Select **one** dataset below. Delete the other three options from your final submission (keep only the one you chose). Each dataset includes suggested questions — you may explore these or define your own.
+:::
+
+### Option A: Gapminder
+
+**Source:** `gapminder` R package or [gapminder.org](https://www.gapminder.org/data/) \| **Size:** 1,704 × 6
+
+Country-level life expectancy, GDP per capita, and population (1952–2007, 142 countries, 5 continents).
+
+*Suggested questions:* How has life expectancy changed across continents? What is the GDP–life expectancy relationship? Which countries are outliers?
+
+### Option B: NYC Taxi Trips (Sample)
+
+**Source:** [NYC TLC Trip Records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page) — 50,000-row sample provided \| **Size:** 50,000 × 18
+
+Yellow taxi trips with pickup/dropoff times, locations, distances, fares, tips, and payment types.
+
+*Suggested questions:* How do distance and fare relate? How do tips vary by time/payment type? What are the busiest hours? Are there suspicious records?
+
+### Option C: Adult/Census Income
+
+**Source:** [UCI ML Repository](https://archive.ics.uci.edu/dataset/2/adult) \| **Size:** 48,842 × 15
+
+Demographic and employment data from the 1994 US Census. Target: income \>\$50K.
+
+*Suggested questions:* How do income levels relate to education and occupation? Are there differences by gender or race? Who is underrepresented?
+
+### Option D: Ames Housing
+
+**Source:** `modeldata::ames` or [Kaggle](https://www.kaggle.com/c/house-prices-advanced-regression-techniques) \| **Size:** 2,930 × 74
+
+Detailed residential housing data from Ames, Iowa, with 80+ features.
+
+*Suggested questions:* What predicts sale price? How do prices vary by neighborhood? Are there outliers? Does price need transformation?
+
+------------------------------------------------------------------------
+
+**My chosen dataset:**
+
+> *\[State which dataset you chose\]*
+
+------------------------------------------------------------------------
+
+## 1. Introduction (10 points)
+
+::: callout-note
+## Requirements
+
+- State which dataset you chose and why
+- Describe the dataset: source, size (rows × columns), key variables, time period
+- State 2–3 specific questions you will explore
+- Discuss data provenance: who collected this data, when, and for what purpose
+:::
+
+```{r}
+#| label: load-data
+# Load your chosen dataset here
+# Example: data(gapminder, package = "gapminder")
+# Example: df <- read_csv("data/your_data.csv")
+```
+
+> *\[Your introduction — describe the dataset, state your questions, discuss provenance\]*
+
+------------------------------------------------------------------------
+
+## 2. Data Quality Assessment (15 points)
+
+::: callout-note
+## Requirements
+
+- Report missing values per column (counts AND percentages)
+- Identify data type issues (columns needing conversion)
+- Check for impossible or suspicious values
+- Document every cleaning step with justification
+- Include before/after summary (e.g., row counts)
+:::
+
+### Missing Values
+
+```{r}
+#| label: missing-values
+# Report missing values per column
+
+```
+
+> *\[Your interpretation — is missingness random or systematic? Which columns are affected?\]*
+
+### Data Type Checks
+
+```{r}
+#| label: data-types
+# Check and fix data types
+
+```
+
+> *\[Your findings — which columns needed conversion and why?\]*
+
+### Suspicious Values
+
+```{r}
+#| label: suspicious-values
+# Check for impossible or extreme values
+
+```
+
+> *\[Your findings — any impossible values? What did you do about them?\]*
+
+### Cleaning Summary
+
+> *\[Document what you changed and why. If the data was already clean, state that explicitly and explain why that is unusual.\]*
+
+| Cleaning Step | Rows/Values Affected | Justification |
+|---------------|----------------------|---------------|
+| *\[step 1\]*  | *\[count\]*          | *\[why\]*     |
+| *\[step 2\]*  | *\[count\]*          | *\[why\]*     |
+
+> Before cleaning: \_\_\_ rows × \_\_\_ columns \| After cleaning: \_\_\_ rows × \_\_\_ columns
+
+------------------------------------------------------------------------
+
+## 3. Univariate Analysis (15 points)
+
+::: callout-note
+## Requirements
+
+- For at least 3 numeric variables: report center (mean/median), spread (SD/IQR), shape (skewness), and outliers
+- For at least 2 categorical variables: report level counts and proportions
+- Include at least 2 visualizations (histograms, bar charts, or similar)
+- Interpret each visualization in prose
+:::
+
+### Numeric Variables
+
+```{r}
+#| label: numeric-summary
+# Summary statistics for 3+ numeric variables (e.g., skim())
+
+```
+
+> *\[Your interpretation — what do the center, spread, and shape tell you about each variable?\]*
+
+```{r}
+#| label: numeric-viz-1
+#| fig-cap: "[Your descriptive title stating the finding]"
+# Histogram or density plot for a key numeric variable
+
+```
+
+> *\[Your interpretation — what does this distribution show? Is it skewed? Are there outliers?\]*
+
+### Categorical Variables
+
+```{r}
+#| label: categorical-summary
+# Counts and proportions for 2+ categorical variables
+
+```
+
+> *\[Your interpretation — are categories balanced? Is any category dominant or rare?\]*
+
+```{r}
+#| label: categorical-viz
+#| fig-cap: "[Your descriptive title stating the finding]"
+# Bar chart for a categorical variable
+
+```
+
+> *\[Your interpretation\]*
+
+------------------------------------------------------------------------
+
+## 4. Bivariate & Multivariate Analysis (20 points)
+
+::: callout-note
+## Requirements
+
+- Explore relationships between at least 3 variable pairs
+- Include a correlation matrix or heatmap for numeric variables
+- Use at least one faceted or grouped visualization
+- Discuss any Simpson's Paradox candidates or confounding variables
+- Interpret every visualization — use "associated with," not "causes"
+:::
+
+### Correlation Analysis
+
+```{r}
+#| label: correlation
+#| fig-cap: "[Your title for the correlation heatmap]"
+# Correlation matrix or heatmap
+
+```
+
+> *\[Your interpretation — which correlations are strongest? Any surprises?\]*
+
+### Relationship 1
+
+```{r}
+#| label: bivariate-1
+#| fig-cap: "[Your descriptive title stating the finding]"
+# Scatterplot, grouped boxplot, or other bivariate visualization
+
+```
+
+> *\[Your interpretation\]*
+
+### Relationship 2
+
+```{r}
+#| label: bivariate-2
+#| fig-cap: "[Your descriptive title stating the finding]"
+# Another bivariate visualization
+
+```
+
+> *\[Your interpretation\]*
+
+### Faceted / Grouped Analysis
+
+```{r}
+#| label: faceted
+#| fig-cap: "[Your descriptive title stating the finding]"
+# Faceted plot or grouped comparison
+
+```
+
+> *\[Your interpretation — what does grouping reveal that the aggregate view hides?\]*
+
+### Confounding & Simpson's Paradox
+
+> *\[Identify at least one potential confounder or Simpson's Paradox candidate. Explain why it matters and how it could change interpretation of your findings.\]*
+
+------------------------------------------------------------------------
+
+## 5. Visualization Portfolio (20 points)
+
+::: callout-note
+## Requirements
+
+Produce at least **5 distinct visualization types** from this list. Check off each type as you include it. Each must have: a descriptive title that states the finding, labeled axes with units, a colorblind-safe palette, a caption citing the data source, and at least 2 sentences of prose interpretation.
+
+- [ ] Histogram or density plot
+- [ ] Scatterplot (with optional trend line)
+- [ ] Boxplot or violin plot
+- [ ] Bar chart (counts or summarized values)
+- [ ] Faceted / small multiples plot
+- [ ] Heatmap (correlation or cross-tabulation)
+- [ ] Line chart (if time dimension exists)
+
+You have already created some of these in Sections 3–4. List them here and add any remaining types needed to reach 5.
+:::
+
+**Visualizations included in this report:**
+
+| \#  | Type       | Section         | Title       |
+|-----|------------|-----------------|-------------|
+| 1   | *\[type\]* | *\[section #\]* | *\[title\]* |
+| 2   | *\[type\]* | *\[section #\]* | *\[title\]* |
+| 3   | *\[type\]* | *\[section #\]* | *\[title\]* |
+| 4   | *\[type\]* | *\[section #\]* | *\[title\]* |
+| 5   | *\[type\]* | *\[section #\]* | *\[title\]* |
+
+### Additional Visualizations (if needed to reach 5)
+
+```{r}
+#| label: extra-viz-1
+#| fig-cap: "[Your descriptive title]"
+# Additional chart type not yet included
+
+```
+
+> *\[Your interpretation\]*
+
+```{r}
+#| label: extra-viz-2
+#| fig-cap: "[Your descriptive title]"
+# Additional chart type if needed
+
+```
+
+> *\[Your interpretation\]*
+
+------------------------------------------------------------------------
+
+## 6. Ethical Reflection (10 points)
+
+::: callout-note
+## Requirements
+
+- Assess representativeness: who is included in this dataset? Who is missing?
+- Identify at least one finding that could be misleading without context
+- Discuss what conclusions should NOT be drawn from this data
+- Use "associated with" language, not causal claims
+:::
+
+### Representativeness
+
+> *\[Who does this dataset represent? Who is missing or underrepresented? If someone drew conclusions about a broader population from this data, what would be wrong?\]*
+
+### Potentially Misleading Findings
+
+> *\[Identify at least one specific finding from your analysis that could mislead a reader if presented without context. Explain the missing context and how you would report it responsibly.\]*
+
+### What This Data Cannot Answer
+
+> *\[State 2–3 specific conclusions that should NOT be drawn from this data. Consider: causal claims, generalizability, unmeasured confounders.\]*
+
+------------------------------------------------------------------------
+
+## 7. Conclusion (10 points)
+
+::: callout-note
+## Requirements
+
+- Summarize your top 3 findings with supporting evidence
+- State what surprised you
+- Propose 2–3 follow-up questions this EDA cannot answer but further analysis could
+:::
+
+### Top 3 Findings
+
+1.  *\[Finding 1 — with reference to specific evidence from your analysis\]*
+2.  *\[Finding 2\]*
+3.  *\[Finding 3\]*
+
+### Surprises
+
+> *\[What surprised you? Were your initial expectations confirmed or overturned?\]*
+
+### Follow-Up Questions
+
+1.  *\[Question 1 — specific and answerable with additional data or methods\]*
+2.  *\[Question 2\]*
+3.  *\[Question 3\]*
+
+------------------------------------------------------------------------
+
+## Submission Checklist
+
+::: callout-warning
+## Before Submitting
+
+- [ ] Changed `execute: enabled: false` to `execute: enabled: true` in the YAML header
+- [ ] Report renders without errors
+- [ ] All placeholder text (`*[Your answer]*`) has been replaced with your own writing
+- [ ] 5 distinct chart types included, each with title, labels, caption, and interpretation
+- [ ] Code is folded (readers see results, not code by default)
+- [ ] GitHub repository contains: this `.qmd`, the rendered `.html`, data or download instructions, and `README.md`
+- [ ] Commit history shows incremental progress (5+ commits with descriptive messages)
+- [ ] Deleted the dataset options you did NOT choose (Section "Choose Your Dataset")
+:::
