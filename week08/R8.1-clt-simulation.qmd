@@ -1,0 +1,114 @@
+---
+title: "Exercise R8.1: Simulating the Central Limit Theorem"
+subtitle: "STAT 540 — Week 8"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will demonstrate the CLT through simulation, observing how the sampling distribution of the mean converges to normal as sample size increases.
+
+## Task 1: Sample from a Non-Normal Distribution
+
+```{r}
+set.seed(42)
+
+# Population: exponential distribution (right-skewed, rate=1, mean=1)
+population <- rexp(100000, rate = 1)
+hist(population[1:5000], breaks = 50, main = "Population: Exponential(rate=1)",
+     col = "coral", xlab = "Value")
+cat("Population mean:", round(mean(population), 3), "\n")
+cat("Population SD:", round(sd(population), 3), "\n")
+```
+
+## Task 2: Sampling Distributions for Varying n
+
+```{r}
+set.seed(42)
+par(mfrow = c(2, 2))
+
+for (n in c(5, 15, 30, 100)) {
+  sample_means <- replicate(2000, mean(sample(population, n)))
+  hist(sample_means, breaks = 40,
+       main = paste0("Sample Means (n=", n, ")"),
+       col = "steelblue", xlab = "Mean", xlim = c(0, 3))
+  abline(v = 1, col = "red", lwd = 2)   # True mean
+}
+```
+
+**Your turn:** Describe what happens to the shape, center, and spread as n increases:
+
+- **Shape:** *As n increases, the shape goes from being more clearly right-skewed at n=5, to being roughly symmetric and bell-shaped by n=30, to nearly normal at n=100. In other words, the skew of the population gets more averaged out.*
+- **Center:** *It doesn't really change, and stays at around 1.0.*
+- **Spread:** *The spread shrinks steadily. The n=5 histogram covers nearly the whole 0 to 3 range, while the n=100 histogram is packed into roughly 0.7 to 1.4.*
+
+## Task 3: Standard Error Verification
+
+```{r}
+# Compare observed SE to theoretical SE (sigma / sqrt(n))
+sigma <- sd(population)
+
+for (n in c(5, 15, 30, 100)) {
+  sample_means <- replicate(2000, mean(sample(population, n)))
+  observed_se <- sd(sample_means)
+  theoretical_se <- sigma / sqrt(n)
+  cat(sprintf("n=%3d: Observed SE=%.4f, Theoretical SE=%.4f\n",
+              n, observed_se, theoretical_se))
+}
+```
+
+**Your turn:** How close are the observed and theoretical standard errors? What does this confirm?
+
+> *They are quite close. It confirms that the standard error formula SE=σ/sqrt(n) accurately describes how much sample means vary, which is the quantitative core of the Central Limit Theorem.*
+
+## Task 4: Try a Different Population
+
+Repeat with a uniform distribution or bimodal distribution. Does the CLT still hold?
+
+```{r}
+# Your code — choose a different population shape
+set.seed(42)
+par(mfrow = c(2, 2))
+
+# Uniform population (true mean = 1)
+population <- runif(100000, 0, 2)
+
+for (n in c(5, 15, 30, 100)) {
+  sample_means <- replicate(2000, mean(sample(population, n)))
+  hist(sample_means, breaks = 40,
+       main = paste0("Uniform: Sample Means (n=", n, ")"),
+       col = "steelblue", xlab = "Mean", xlim = c(0, 2))
+  abline(v = 1, col = "red", lwd = 2)   # True mean
+}
+
+# Bimodal population (true mean = 1)
+population <- c(rnorm(50000, 0.3, 0.1), rnorm(50000, 1.7, 0.1))
+
+for (n in c(5, 15, 30, 100)) {
+  sample_means <- replicate(2000, mean(sample(population, n)))
+  hist(sample_means, breaks = 40,
+       main = paste0("Bimodal: Sample Means (n=", n, ")"),
+       col = "steelblue", xlab = "Mean", xlim = c(0, 2))
+  abline(v = 1, col = "red", lwd = 2)   # True mean
+}
+```
+**Your observation:**
+
+> *Both sets of plots confirm that the CLT holds, but how quickly depends on the population’s shape. The uniform population is symmetric, so its sample means look bell-shaped by n=5. The bimodal population converges more slowly: at n=5 the means form separate clusters, because each sample can only contain 0 to 5 draws from the upper mode, which limits the possible means to a few values. By n=15 those clusters blur together, and by n=30  100 the distribution is close to normal and centered at the true mean of 1. In both cases the spread shrinks as n grows, though the bimodal means stay a bit wider because its σ is larger (about 0.71 versus 0.58). The CLT does not require a normal population, only enough observations per sample, and that number is larger for populations that are further from normal.*
+
+## Submission
+
+```bash
+git add week08/exercises/R8.1*
+git commit -m "Complete Exercise R8.1: CLT simulation"
+git push origin main
+```

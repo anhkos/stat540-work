@@ -1,0 +1,80 @@
+---
+title: "Exercise RP9.2: Complete Regression Analysis Report"
+subtitle: "STAT 540 — Week 9"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+Produce a complete regression analysis following the standard structure. Choose R or Python (or both). This exercise mirrors what your Project 2 submission should look like.
+
+## 1. Research Question
+
+State a clear, specific question that regression can answer. Use a dataset of your choice.
+
+> *[Your question]*
+
+## 2. Data Description
+
+Briefly describe the dataset: source, size, key variables, and any preprocessing applied.
+
+> *[Your description]*
+
+## 3. Model Specification
+
+What model did you fit? Why did you choose these predictors?
+
+```{r}
+# Your model code here
+```
+
+## 4. Results
+
+Report coefficients with confidence intervals, R² or accuracy, and at least one effect size measure.
+
+```{r}
+# Your results code here
+```
+
+**Plain-language interpretation:** *[One paragraph interpreting the key findings]*
+
+## 5. Diagnostics
+
+Check model assumptions. Note any violations and what you did about them.
+
+```{r}
+# Your diagnostic code here
+```
+
+## 6. Performance Assessment
+
+If predictive: report train/test metrics. If inferential: report significance and CIs.
+
+```{r}
+# Your evaluation code here
+```
+
+## 7. Limitations
+
+What can this model NOT answer? What are the data limitations?
+
+> *[Your limitations — at least 3 specific points]*
+
+## Submission Checklist
+
+- [ ] Research question stated
+- [ ] Model fitted with justification for predictor choice
+- [ ] Coefficients interpreted in plain language
+- [ ] Diagnostic checks performed
+- [ ] Performance assessed (train/test or significance)
+- [ ] Limitations section with 3+ specific points
+- [ ] Committed to GitHub

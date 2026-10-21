@@ -1,0 +1,70 @@
+---
+title: "Exercise R9.1: Multivariate Regression with Interaction"
+subtitle: "STAT 540 — Week 9"
+author: "Your Name Here"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+Fit and interpret a multivariate regression model with interaction terms on the diamonds dataset.
+
+## Task 1: Fit a Model with Interaction
+
+```{r}
+fit <- lm(log(price) ~ carat * cut + clarity, data = diamonds)
+summary(fit)
+
+library(broom)
+tidy(fit, conf.int = TRUE) |>
+  mutate(across(where(is.numeric), ~round(., 4)))
+```
+
+**Your turn:** Interpret the coefficient for `carat`, the coefficient for `cutIdeal`, and one interaction term in plain language:
+
+- **carat:** *[interpretation]*
+- **cutIdeal:** *[interpretation]*
+- **carat:cutIdeal:** *[interpretation]*
+
+## Task 2: Diagnostic Plots
+
+```{r}
+library(performance)
+check_model(fit)
+```
+
+**Your turn:** Do you see any assumption violations? Which assumptions hold and which are questionable?
+
+> *[Your answer]*
+
+## Task 3: Model Comparison
+
+Fit a simpler model without the interaction and compare:
+
+```{r}
+fit_simple <- lm(log(price) ~ carat + cut + clarity, data = diamonds)
+
+# Compare
+glance(fit) |> select(r.squared, adj.r.squared, AIC, BIC)
+glance(fit_simple) |> select(r.squared, adj.r.squared, AIC, BIC)
+```
+
+**Your turn:** Does the interaction improve the model? Which metrics did you use to decide?
+
+> *[Your answer]*
+
+## Submission
+
+```bash
+git add week09/exercises/R9.1*
+git commit -m "Complete Exercise R9.1: Multivariate regression with interaction"
+git push origin main
+```

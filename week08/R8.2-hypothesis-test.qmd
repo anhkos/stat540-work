@@ -1,0 +1,83 @@
+---
+title: "Exercise R8.2: Hypothesis Testing in Practice"
+subtitle: "STAT 540 — Week 8"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+In this exercise, you will conduct a hypothesis test on real data, interpret the results correctly, and write up the findings in proper statistical language.
+
+## Task 1: Two-Sample t-Test
+
+Using the diamonds dataset, test whether "Premium" and "Ideal" cut diamonds differ in mean price:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+premium <- diamonds |> filter(cut == "Premium") |> pull(price)
+ideal <- diamonds |> filter(cut == "Ideal") |> pull(price)
+
+result <- t.test(premium, ideal)
+print(result)
+```
+
+**Your turn:** State the null and alternative hypotheses, report the test statistic, p-value, and 95% CI:
+
+- H₀: *μ_premium = μ_ideal (the true difference in mean price is 0)*
+- H₁: *μ_premium =/= μ_ideal (the true difference in mean price is not 0)*
+- t = *24.918*, p = *2.2e-16*
+- 95% CI for mean difference: *($1,038.09, $1,215.34)*
+
+## Task 2: Effect Size
+
+```{r}
+# Compute Cohen's d
+d <- (mean(premium) - mean(ideal)) / sqrt((sd(premium)^2 + sd(ideal)^2) / 2)
+cat("Cohen's d:", round(d, 3), "\n")
+```
+
+**Your turn:** Is this effect small, medium, or large? What does this mean practically?
+
+> *Cohen’s d = 0.276 is a small effect, using the usual benchmarks of 0.2 (small), 0.5 (medium), and 0.8 (large). Practically, the roughly $1,127 gap is only about 0.28 standard deviations, since prices vary by around $4,000 within each cut. The two price distributions overlap heavily, so knowing a diamond’s cut tells you very little about its price. The t-test was highly significant mostly because the samples are so large, not because the difference is big.*
+
+## Task 3: Plain-Language Write-Up
+
+Write a one-paragraph interpretation of your findings following the template from Module 2. Include: test used, t-statistic, p-value, CI, effect size, and practical interpretation.
+
+> *A Welch two-sample t-test compared the prices of Premium-cut and Ideal-cut diamonds and found a statistically significant difference, t(26,552) = 24.92, p < .001. Premium diamonds averaged $4,584 and Ideal diamonds averaged $3,458, a difference of about $1,127 (95% CI: $1,038 to $1,215). However, the effect size was small (Cohen’s d = 0.28), meaning the price distributions overlap substantially and cut grade alone explains little of the variation in price. Practically, Premium diamonds cost more on average, but this is likely driven by other factors such as carat weight, so the result should not be read as cut quality causing higher prices.*
+
+## Task 4: Assumptions Check
+
+```{r}
+# Check normality (or argue CLT applies)
+cat("Premium n:", length(premium), "\n")
+cat("Ideal n:", length(ideal), "\n")
+
+# Histogram of both groups
+par(mfrow = c(1, 2))
+hist(premium, breaks = 40, main = "Premium", col = "steelblue")
+hist(ideal, breaks = 40, main = "Ideal", col = "coral")
+```
+
+**Your turn:** Are the assumptions of the t-test met? If not, why can you still trust the result?
+
+> *The t-test’s normality assumption is not met, since both price distributions are strongly right-skewed, but this doesn’t undermine the result. The test relies on the sampling distribution of the mean being approximately normal, not the raw data, and by the Central Limit Theorem that holds when samples are large. With roughly 13,800 Premium and 21,600 Ideal diamonds, the sample means are well past the point where skew averages out, as in your simulations. Welch’s test also doesn’t assume equal variances, and the diamonds can reasonably be treated as independent observations. The very large test statistic (t = 24.9) means the conclusion isn’t borderline, so we can trust that the mean prices differ. A Wilcoxon test or a t-test on log(price) would be an optional robustness check.*
+
+## Submission
+
+```bash
+git add week08/exercises/R8.2*
+git commit -m "Complete Exercise R8.2: Hypothesis testing with diamonds"
+git push origin main
+```
