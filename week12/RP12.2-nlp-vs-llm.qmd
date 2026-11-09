@@ -1,0 +1,69 @@
+---
+title: "Exercise RP12.2: Classical NLP vs LLM Comparison"
+subtitle: "STAT 540 — Week 12"
+author: "Your Name Here"
+date: last-modified
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+Compare a TF-IDF classifier with an LLM on the same sentiment classification task using 20 sample reviews.
+
+## Task 1: Select 20 Test Reviews
+
+Choose 20 reviews (10 positive, 10 negative) from your test set. These should include some easy cases and some tricky ones (sarcasm, negation, mixed sentiment).
+
+## Task 2: Classify with Your TF-IDF Model
+
+```{python}
+# Use your pipeline from P12.1
+# tfidf_preds = pipe.predict(sample_reviews)
+```
+
+## Task 3: Classify with an LLM
+
+Use Claude, ChatGPT, or another LLM (via web interface or API) to classify the same 20 reviews. Document the prompt you used.
+
+**Your prompt:** *[Paste your prompt here]*
+
+## Task 4: Compare Results
+
+| Review # | True Label | TF-IDF Prediction | LLM Prediction | Both Correct? |
+|----------|-----------|-------------------|----------------|---------------|
+| 1 | *[pos/neg]* | *[pred]* | *[pred]* | *[Y/N]* |
+| ... | | | | |
+| 20 | *[pos/neg]* | *[pred]* | *[pred]* | *[Y/N]* |
+
+**Summary:**
+- TF-IDF accuracy on these 20: ___/20
+- LLM accuracy on these 20: ___/20
+
+## Task 5: Error Analysis
+
+For cases where one method failed and the other succeeded, explain WHY:
+
+**TF-IDF failed, LLM succeeded:**
+> *[Example and explanation — what did TF-IDF miss?]*
+
+**LLM failed, TF-IDF succeeded (if any):**
+> *[Example and explanation]*
+
+## Task 6: Reflection (150 words)
+
+When would you choose TF-IDF over an LLM? When would you choose the LLM? Consider: cost, speed, accuracy, interpretability, and data privacy.
+
+> *[Your reflection]*
+
+## Submission
+
+```bash
+git add week12/exercises/RP12.2*
+git commit -m "Complete Exercise RP12.2: Classical NLP vs LLM comparison"
+git push origin main
+```

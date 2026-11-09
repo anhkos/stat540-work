@@ -1,7 +1,7 @@
 ---
 title: "Project 1: Exploratory Data Analysis & Visualization"
 subtitle: "STAT 540 — Foundations of Data Science"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -25,6 +25,11 @@ library(readr)
 library(skimr)
 library(tidyr)
 # Add any additional packages you need
+library(tibble)
+library(lubridate)
+library(forcats)
+library(scales)
+src <- "Source: NYC TLC Yellow Taxi Trip Records, Jan 2024 (50,000-row random sample)"
 ```
 
 ::: callout-important
@@ -45,13 +50,6 @@ library(tidyr)
 Select **one** dataset below. Delete the other three options from your final submission (keep only the one you chose). Each dataset includes suggested questions — you may explore these or define your own.
 :::
 
-### Option A: Gapminder
-
-**Source:** `gapminder` R package or [gapminder.org](https://www.gapminder.org/data/) \| **Size:** 1,704 × 6
-
-Country-level life expectancy, GDP per capita, and population (1952–2007, 142 countries, 5 continents).
-
-*Suggested questions:* How has life expectancy changed across continents? What is the GDP–life expectancy relationship? Which countries are outliers?
 
 ### Option B: NYC Taxi Trips (Sample)
 
@@ -61,27 +59,11 @@ Yellow taxi trips with pickup/dropoff times, locations, distances, fares, tips, 
 
 *Suggested questions:* How do distance and fare relate? How do tips vary by time/payment type? What are the busiest hours? Are there suspicious records?
 
-### Option C: Adult/Census Income
-
-**Source:** [UCI ML Repository](https://archive.ics.uci.edu/dataset/2/adult) \| **Size:** 48,842 × 15
-
-Demographic and employment data from the 1994 US Census. Target: income \>\$50K.
-
-*Suggested questions:* How do income levels relate to education and occupation? Are there differences by gender or race? Who is underrepresented?
-
-### Option D: Ames Housing
-
-**Source:** `modeldata::ames` or [Kaggle](https://www.kaggle.com/c/house-prices-advanced-regression-techniques) \| **Size:** 2,930 × 74
-
-Detailed residential housing data from Ames, Iowa, with 80+ features.
-
-*Suggested questions:* What predicts sale price? How do prices vary by neighborhood? Are there outliers? Does price need transformation?
-
 ------------------------------------------------------------------------
 
 **My chosen dataset:**
 
-> *\[State which dataset you chose\]*
+> *I chose the NYC Taxi Trips dataset.*
 
 ------------------------------------------------------------------------
 
@@ -98,12 +80,18 @@ Detailed residential housing data from Ames, Iowa, with 80+ features.
 
 ```{r}
 #| label: load-data
-# Load your chosen dataset here
-# Example: data(gapminder, package = "gapminder")
-# Example: df <- read_csv("data/your_data.csv")
+url  <- "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.parquet"
+dest <- "yellow_tripdata_2024-01.parquet"
+if (!file.exists(dest)) download.file(url, dest, mode = "wb")
+
+df_full <- arrow::read_parquet(dest)
+
+set.seed(123)
+df <- df_full |> dplyr::slice_sample(n = 50000)
+glimpse(df)
 ```
 
-> *\[Your introduction — describe the dataset, state your questions, discuss provenance\]*
+> *This is a dataset containing information about taxi trips taken in NYC during 2024. It is a 50000 x 19 dataset, containing variables such as the amount paid for the taxi fare and tip, the number of passengers, pickup and dropoff, and more. This data was collected by the NYC Taxi and Limousine Commission (TLC) for the purpose of making data-driven insights about trip data. While there are a lot of things that could be explored with this data, I will focus on figuring out peak taxi hours, a potential correlation between passenger amount trip distance, and tipping behaviors across trip duration.*
 
 ------------------------------------------------------------------------
 
@@ -123,42 +111,117 @@ Detailed residential housing data from Ames, Iowa, with 80+ features.
 
 ```{r}
 #| label: missing-values
-# Report missing values per column
+n_before <- nrow(df); p_before <- ncol(df)
 
+missing_tbl <- df |>
+  summarise(across(everything(), ~ sum(is.na(.x)))) |>
+  pivot_longer(everything(), names_to = "column", values_to = "n_missing") |>
+  mutate(pct_missing = round(100 * n_missing / nrow(df), 2)) |>
+  arrange(desc(n_missing))
+missing_tbl
 ```
 
-> *\[Your interpretation — is missingness random or systematic? Which columns are affected?\]*
+> *The missing values appear to be systematic. The amount of missing values for the affected columns is the exact same, which implies that this was due to the type of vendor or trip that reports this data.*
 
 ### Data Type Checks
 
 ```{r}
 #| label: data-types
-# Check and fix data types
-
+df <- df |>
+  mutate(
+    payment_type = factor(payment_type, levels = 0:6,
+      labels = c("Flex fare", "Credit card", "Cash", "No charge",
+                 "Dispute", "Unknown", "Voided")),
+    RatecodeID = factor(RatecodeID, levels = c(1:6, 99),
+      labels = c("Standard", "JFK", "Newark", "Nassau/Westchester",
+                 "Negotiated", "Group", "Unknown")),
+    VendorID = factor(VendorID),
+    store_and_fwd_flag = factor(store_and_fwd_flag)
+  )
+sapply(df, class)
 ```
 
-> *\[Your findings — which columns needed conversion and why?\]*
+> **The pickup and dropoff columns were already stored as datetimes, so no conversion was needed. Four columns were stored as integers or characters but are really categories: `payment_type`, `RatecodeID`, `VendorID`, and `store_and_fwd_flag`. I converted them to factors with readable labels so they are treated as categories and not as numbers in summaries and plots.*
 
 ### Suspicious Values
 
 ```{r}
 #| label: suspicious-values
-# Check for impossible or extreme values
+df <- df |>
+  mutate(
+    trip_minutes = as.numeric(difftime(tpep_dropoff_datetime, tpep_pickup_datetime, units = "mins")),
+    mph = trip_distance / (trip_minutes / 60)
+  )
 
+outside_jan <- !(year(df$tpep_pickup_datetime) == 2024 & month(df$tpep_pickup_datetime) == 1)
+
+suspicious <- tibble(
+  check = c("pickup outside January 2024", "distance <= 0", "distance > 100 mi",
+            "fare <= 0", "fare > $500", "negative tip", "duration <= 0",
+            "duration > 180 min", "speed > 80 mph", "passengers 0 or > 6",
+            "total < fare"),
+  n = c(
+    sum(outside_jan),
+    sum(df$trip_distance <= 0, na.rm = TRUE),
+    sum(df$trip_distance > 100, na.rm = TRUE),
+    sum(df$fare_amount <= 0, na.rm = TRUE),
+    sum(df$fare_amount > 500, na.rm = TRUE),
+    sum(df$tip_amount < 0, na.rm = TRUE),
+    sum(df$trip_minutes <= 0, na.rm = TRUE),
+    sum(df$trip_minutes > 180, na.rm = TRUE),
+    sum(df$mph > 80, na.rm = TRUE),
+    sum(df$passenger_count == 0 | df$passenger_count > 6, na.rm = TRUE),
+    sum(df$total_amount < df$fare_amount, na.rm = TRUE)
+  )
+)
+suspicious
 ```
 
 > *\[Your findings — any impossible values? What did you do about them?\]*
 
 ### Cleaning Summary
 
-> *\[Document what you changed and why. If the data was already clean, state that explicitly and explain why that is unusual.\]*
+```{r}
+#| label: cleaning
+bad <- with(df,
+  outside_jan |
+  is.na(trip_distance) | trip_distance <= 0 | trip_distance > 100 |
+  fare_amount <= 0 | fare_amount > 500 |
+  tip_amount < 0 |
+  trip_minutes <= 0 | trip_minutes > 180 |
+  mph > 80 |
+  is.na(passenger_count) | passenger_count < 1 | passenger_count > 6)
+
+sum(bad)  # total rows removed
+
+df_clean <- df |>
+  filter(!coalesce(bad, TRUE)) |>
+  mutate(
+    pickup_hour = hour(tpep_pickup_datetime),
+    pickup_wday = wday(tpep_pickup_datetime, label = TRUE, week_start = 1),
+    day_type    = if_else(wday(tpep_pickup_datetime, week_start = 1) >= 6, "Weekend", "Weekday"),
+    tip_pct     = 100 * tip_amount / fare_amount,
+    dur_bin     = cut(trip_minutes, breaks = c(0, 5, 10, 15, 20, 30, 60, 180),
+                      labels = c("<5", "5-10", "10-15", "15-20", "20-30", "30-60", "60+"))
+  )
+
+cat("Before:", n_before, "x", p_before, "| After:", nrow(df_clean), "x", ncol(df_clean))
+```
+
+> *I removed rows that were impossible or extremely implausible, plus rows with missing passenger count (which also covers the other four systematically missing columns). I also added derived columns: trip duration in minutes, speed in mph, pickup hour, day of week, weekday/weekend, tip percentage, and a duration bin. Counts below come from the suspicious-values table; a row can fall into more than one category, so the counts do not sum to the total removed.*
 
 | Cleaning Step | Rows/Values Affected | Justification |
-|---------------|----------------------|---------------|
-| *\[step 1\]*  | *\[count\]*          | *\[why\]*     |
-| *\[step 2\]*  | *\[count\]*          | *\[why\]*     |
+|----|----|----|
+| Pickup outside January 2024 | [X] | Data file is for January 2024; stray timestamps are errors |
+| Missing passenger count (and 4 other fields) | 2,349 | Cannot reasonably impute; systematic missingness |
+| Distance <= 0 or > 100 mi | [X] | Zero-distance trips are likely cancellations; >100 mi is implausible for NYC taxis |
+| Fare <= 0 or > $500 | [X] | Non-positive fares are voids or errors; extreme values are likely data-entry mistakes |
+| Duration <= 0 or > 180 min | [X] | Dropoff before pickup is impossible; 3+ hours suggests a meter left running |
+| Speed > 80 mph | [X] | Not realistic for city driving |
+| Negative tip | [X] | Tips cannot be negative |
+| Passengers 0 or > 6 | [X] | A standard NYC taxi seats at most 5-6 |
 
-> Before cleaning: \_\_\_ rows × \_\_\_ columns \| After cleaning: \_\_\_ rows × \_\_\_ columns
+> Before cleaning: 50,000 rows × 19 columns \| After cleaning: [X] rows × [X] columns (the extra columns are the derived variables)
 
 ------------------------------------------------------------------------
 
@@ -177,151 +240,247 @@ Detailed residential housing data from Ames, Iowa, with 80+ features.
 
 ```{r}
 #| label: numeric-summary
-# Summary statistics for 3+ numeric variables (e.g., skim())
+vars <- c("trip_distance", "fare_amount", "tip_amount", "trip_minutes")
 
+skew <- function(x) mean((x - mean(x, na.rm = TRUE))^3, na.rm = TRUE) / sd(x, na.rm = TRUE)^3
+
+df_clean |>
+  summarise(across(all_of(vars), list(
+    mean = ~mean(.x, na.rm = TRUE), median = ~median(.x, na.rm = TRUE),
+    sd = ~sd(.x, na.rm = TRUE), iqr = ~IQR(.x, na.rm = TRUE),
+    skew = skew,
+    n_outliers = ~sum(.x > quantile(.x, .75, na.rm = TRUE) + 1.5 * IQR(.x, na.rm = TRUE) |
+                      .x < quantile(.x, .25, na.rm = TRUE) - 1.5 * IQR(.x, na.rm = TRUE), na.rm = TRUE)
+  ), .names = "{.col}__{.fn}")) |>
+  pivot_longer(everything(), names_to = c("variable", "stat"), names_sep = "__") |>
+  pivot_wider(names_from = stat, values_from = value) |>
+  mutate(across(where(is.numeric), ~round(.x, 2)))
 ```
 
-> *\[Your interpretation — what do the center, spread, and shape tell you about each variable?\]*
+> *All four variables are right-skewed, with means above medians and positive skewness ([X] to [X]). For trip distance, the median is [X] miles and the mean is [X], with [X] outliers by the 1.5 × IQR rule. Fares follow a similar pattern (median $[X], mean $[X]) because fares are driven by distance and time. Tip amount has a median of $[X], pulled down by the many $0 tips (mostly cash payments). Trip duration has a median of [X] minutes and an IQR of [X], with a long tail of slow trips. Most trips are short and cheap, with a minority of long trips (for example, airport rides) stretching the upper tail.*
 
 ```{r}
 #| label: numeric-viz-1
-#| fig-cap: "[Your descriptive title stating the finding]"
-# Histogram or density plot for a key numeric variable
-
+#| fig-cap: "Most taxi trips are short: trip distance is strongly right-skewed"
+ggplot(df_clean, aes(trip_distance)) +
+  geom_histogram(binwidth = 0.5, fill = "#0072B2", color = "white") +
+  coord_cartesian(xlim = c(0, 20)) +
+  labs(title = "Most taxi trips are under 3 miles",
+       x = "Trip distance (miles)", y = "Number of trips", caption = src)
 ```
 
-> *\[Your interpretation — what does this distribution show? Is it skewed? Are there outliers?\]*
+> *The distribution is strongly right-skewed: the bulk of trips are under [X] miles, with a mode near [X] miles. A small secondary bump around [X] miles likely reflects airport trips. The axis is truncated at 20 miles for readability, but a few longer trips exist.*
+
 
 ### Categorical Variables
 
 ```{r}
 #| label: categorical-summary
-# Counts and proportions for 2+ categorical variables
-
+df_clean |> count(payment_type) |> mutate(prop = round(n / sum(n), 3))
+df_clean |> count(pickup_wday) |> mutate(prop = round(n / sum(n), 3))
+df_clean |> count(passenger_count) |> mutate(prop = round(n / sum(n), 3))
 ```
 
-> *\[Your interpretation — are categories balanced? Is any category dominant or rare?\]*
+> *The categories are not balanced. Credit card is the dominant payment type ([X]% of trips), followed by [cash X%], and the other types are rare. Passenger count is dominated by single riders ([X]%). Trips are spread across days of the week fairly evenly, though [X] has the most trips.*
 
 ```{r}
 #| label: categorical-viz
-#| fig-cap: "[Your descriptive title stating the finding]"
-# Bar chart for a categorical variable
-
+#| fig-cap: "Credit cards account for most taxi payments"
+df_clean |>
+  count(payment_type) |>
+  ggplot(aes(reorder(payment_type, n), n, fill = payment_type)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_fill_viridis_d() +
+  labs(title = "Credit cards account for most payments",
+       x = "Payment type", y = "Number of trips", caption = src)
 ```
 
-> *\[Your interpretation\]*
+> *Credit card payments outnumber all other types combined, with cash a distant second. This matters for the tipping analysis, because cash tips are typically not recorded in the data.*
 
 ------------------------------------------------------------------------
 
 ## 4. Bivariate & Multivariate Analysis (20 points)
 
-::: callout-note
-## Requirements
-
-- Explore relationships between at least 3 variable pairs
-- Include a correlation matrix or heatmap for numeric variables
-- Use at least one faceted or grouped visualization
-- Discuss any Simpson's Paradox candidates or confounding variables
-- Interpret every visualization — use "associated with," not "causes"
-:::
-
 ### Correlation Analysis
 
 ```{r}
 #| label: correlation
-#| fig-cap: "[Your title for the correlation heatmap]"
-# Correlation matrix or heatmap
+#| fig-cap: "Fare, distance, and duration move together; passenger count is nearly unrelated to everything"
+num_vars <- df_clean |>
+  select(passenger_count, trip_distance, trip_minutes, fare_amount, tip_amount, tip_pct)
 
+cor(num_vars, use = "complete.obs", method = "spearman") |>
+  as.data.frame() |> rownames_to_column("var1") |>
+  pivot_longer(-var1, names_to = "var2", values_to = "r") |>
+  ggplot(aes(var1, var2, fill = r)) +
+  geom_tile() +
+  geom_text(aes(label = round(r, 2)), size = 3) +
+  scale_fill_viridis_c(limits = c(-1, 1)) +
+  labs(title = "Fare, distance, and duration are strongly correlated",
+       x = NULL, y = NULL, fill = "Spearman r", caption = src) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-> *\[Your interpretation — which correlations are strongest? Any surprises?\]*
+> *I used Spearman correlation because the variables are skewed. The strongest correlations are among fare, distance, and duration (r ≈ [X]), which is expected because the meter charges by both. Passenger count has near-zero correlation with the other variables (|r| < [X]). Tip percentage is [weakly] associated with trip variables, which is [a surprise / expected] because [reason].*
 
-### Relationship 1
+### Relationship 1: Passenger count and trip distance
+
+```{r}
+#| label: passenger-distance-stats
+cor(df_clean$passenger_count, df_clean$trip_distance, method = "spearman")
+
+df_clean |>
+  group_by(passenger_count) |>
+  summarise(n = n(), mean_dist = mean(trip_distance), median_dist = median(trip_distance))
+```
 
 ```{r}
 #| label: bivariate-1
-#| fig-cap: "[Your descriptive title stating the finding]"
-# Scatterplot, grouped boxplot, or other bivariate visualization
-
+#| fig-cap: "Trip distance changes little with passenger count"
+ggplot(df_clean, aes(factor(passenger_count), trip_distance)) +
+  geom_boxplot(fill = "#56B4E9", outlier.alpha = 0.1) +
+  coord_cartesian(ylim = c(0, 15)) +
+  labs(title = "Median trip distance is similar across passenger counts",
+       x = "Number of passengers", y = "Trip distance (miles)", caption = src)
 ```
 
-> *\[Your interpretation\]*
+> *Passenger count is only [weakly] associated with trip distance (Spearman r = [X]). Median distance ranges from [X] to [X] miles across passenger counts, and the boxes overlap heavily. With 50,000 rows even a tiny correlation would be statistically detectable, so the practical effect size is what matters: here it is [negligible / small]. Groups with 5-6 passengers are small, so their boxes are less reliable.*
 
-### Relationship 2
+### Relationship 2: Tipping and trip duration
+
+```{r}
+#| label: tip-duration-stats
+tip_cc <- df_clean |> filter(payment_type == "Credit card", tip_pct <= 100)
+
+tip_cc |>
+  group_by(dur_bin) |>
+  summarise(n = n(), median_tip_pct = median(tip_pct), mean_tip_pct = mean(tip_pct),
+            pct_zero_tip = 100 * mean(tip_amount == 0))
+```
 
 ```{r}
 #| label: bivariate-2
-#| fig-cap: "[Your descriptive title stating the finding]"
-# Another bivariate visualization
-
+#| fig-cap: "Tip percentage by trip duration (credit-card trips)"
+ggplot(tip_cc, aes(dur_bin, tip_pct)) +
+  geom_boxplot(fill = "#0072B2", alpha = 0.6, outlier.alpha = 0.1) +
+  coord_cartesian(ylim = c(0, 50)) +
+  labs(title = "Tip percentage is [highest on short trips and levels off]",
+       x = "Trip duration (minutes)", y = "Tip (% of fare)", caption = src)
 ```
 
-> *\[Your interpretation\]*
+> *I restricted this analysis to credit-card trips, since cash tips are almost always recorded as $0 and would make riders look like non-tippers. Median tip percentage is [X]% for trips under 5 minutes and [X]% for trips of 30-60 minutes, so tip percentage is [higher / lower / roughly flat] as trips get longer. Trips under 5 minutes may have [many small fares where a minimum tip dominates].*
+
+```{r}
+#| label: tip-scatter
+#| fig-cap: "Tip percentage versus duration with trend line"
+ggplot(tip_cc, aes(trip_minutes, tip_pct)) +
+  geom_point(alpha = 0.05, color = "#0072B2") +
+  geom_smooth(color = "#D55E00", se = FALSE) +
+  coord_cartesian(xlim = c(0, 60), ylim = c(0, 50)) +
+  labs(title = "Longer trips are [not] associated with higher tip percentages",
+       x = "Trip duration (minutes)", y = "Tip (% of fare)", caption = src)
+```
+
+> *The trend line shows [describe shape]. Tip percentage is clustered around [X]%, consistent with the preset tip options on payment screens (often 20%, 25%, 30%).*
 
 ### Faceted / Grouped Analysis
 
 ```{r}
 #| label: faceted
-#| fig-cap: "[Your descriptive title stating the finding]"
-# Faceted plot or grouped comparison
-
+#| fig-cap: "The passenger-distance link differs between standard and JFK trips"
+df_clean |>
+  filter(RatecodeID %in% c("Standard", "JFK")) |>
+  ggplot(aes(factor(passenger_count), trip_distance)) +
+  geom_boxplot(fill = "#56B4E9", outlier.alpha = 0.1) +
+  facet_wrap(~RatecodeID, scales = "free_y") +
+  labs(title = "JFK trips are much longer than standard trips at every passenger count",
+       x = "Number of passengers", y = "Trip distance (miles)", caption = src)
 ```
 
-> *\[Your interpretation — what does grouping reveal that the aggregate view hides?\]*
+> *Splitting by rate code reveals that JFK trips are [far longer] than standard trips at every passenger count, a difference the aggregate view blends together. Within each group, passenger count is [still weakly related] to distance. This shows that the rate code (trip type) explains much more of the variation in distance than the number of passengers.*
 
 ### Confounding & Simpson's Paradox
 
-> *\[Identify at least one potential confounder or Simpson's Paradox candidate. Explain why it matters and how it could change interpretation of your findings.\]*
+```{r}
+#| label: confounding
+# Tip % vs. duration, by rate code
+tip_cc |> group_by(RatecodeID) |>
+  summarise(n = n(), r = cor(trip_minutes, tip_pct, method = "spearman"))
+
+# Tip % by payment type (all trips)
+df_clean |>
+  filter(payment_type %in% c("Credit card", "Cash")) |>
+  group_by(payment_type) |>
+  summarise(n = n(), mean_tip_pct = mean(tip_pct), pct_zero_tip = 100 * mean(tip_amount == 0))
+```
+
+> *Payment type is a major confounder for tipping. Cash trips show a mean tip of [X]% because cash tips are not recorded, while credit-card trips show [X]%. If both were pooled, any pattern between tipping and trip duration would partly reflect the mix of payment types at different durations, not riders' behavior. Rate code is a second confounder: flat-rate JFK trips have long durations and large fares, so they can pull the overall relationship between duration and tip percentage. Within-group correlations are [X for Standard, X for JFK] versus [X] overall, so [the direction does / does not] change when I control for rate code. [If no sign reversal: this is confounding, not a strict Simpson's reversal.]*
 
 ------------------------------------------------------------------------
 
 ## 5. Visualization Portfolio (20 points)
 
-::: callout-note
-## Requirements
-
-Produce at least **5 distinct visualization types** from this list. Check off each type as you include it. Each must have: a descriptive title that states the finding, labeled axes with units, a colorblind-safe palette, a caption citing the data source, and at least 2 sentences of prose interpretation.
-
-- [ ] Histogram or density plot
-- [ ] Scatterplot (with optional trend line)
-- [ ] Boxplot or violin plot
-- [ ] Bar chart (counts or summarized values)
-- [ ] Faceted / small multiples plot
-- [ ] Heatmap (correlation or cross-tabulation)
-- [ ] Line chart (if time dimension exists)
-
-You have already created some of these in Sections 3–4. List them here and add any remaining types needed to reach 5.
-:::
+- [x] Histogram or density plot
+- [x] Scatterplot (with optional trend line)
+- [x] Boxplot or violin plot
+- [x] Bar chart (counts or summarized values)
+- [x] Faceted / small multiples plot
+- [x] Heatmap (correlation or cross-tabulation)
+- [x] Line chart (if time dimension exists)
 
 **Visualizations included in this report:**
 
-| \#  | Type       | Section         | Title       |
-|-----|------------|-----------------|-------------|
-| 1   | *\[type\]* | *\[section #\]* | *\[title\]* |
-| 2   | *\[type\]* | *\[section #\]* | *\[title\]* |
-| 3   | *\[type\]* | *\[section #\]* | *\[title\]* |
-| 4   | *\[type\]* | *\[section #\]* | *\[title\]* |
-| 5   | *\[type\]* | *\[section #\]* | *\[title\]* |
+| \# | Type | Section | Title |
+|----|----|----|----|
+| 1 | Histogram | 3 | Most taxi trips are under 3 miles |
+| 2 | Bar chart | 3 | Credit cards account for most payments |
+| 3 | Heatmap (correlation) | 4 | Fare, distance, and duration are strongly correlated |
+| 4 | Boxplot | 4 | Median trip distance is similar across passenger counts |
+| 5 | Scatterplot with trend | 4 | Longer trips are [not] associated with higher tip percentages |
+| 6 | Faceted boxplot | 4 | JFK trips are much longer than standard trips |
+| 7 | Line chart | 5 | Weekday demand peaks in the evening |
+| 8 | Heatmap (cross-tab) | 5 | Weekday 4-7 PM is the busiest stretch |
 
-### Additional Visualizations (if needed to reach 5)
+### Additional Visualizations
 
 ```{r}
 #| label: extra-viz-1
-#| fig-cap: "[Your descriptive title]"
-# Additional chart type not yet included
-
+#| fig-cap: "Weekday demand peaks in the evening; weekends peak later and stay higher overnight"
+df_clean |>
+  count(date = as_date(tpep_pickup_datetime), day_type, pickup_hour) |>
+  group_by(day_type, pickup_hour) |>
+  summarise(avg_trips = mean(n), .groups = "drop") |>
+  ggplot(aes(pickup_hour, avg_trips, color = day_type)) +
+  geom_line(linewidth = 1) + geom_point() +
+  scale_color_manual(values = c("Weekday" = "#0072B2", "Weekend" = "#D55E00")) +
+  scale_x_continuous(breaks = seq(0, 23, 3)) +
+  labs(title = "Taxi demand peaks in the evening on weekdays",
+       x = "Pickup hour (0-23)", y = "Average trips per day in that hour",
+       color = NULL, caption = src)
 ```
 
-> *\[Your interpretation\]*
+```{r}
+#| label: peak-hours-table
+df_clean |> count(pickup_hour, sort = TRUE) |> slice_head(n = 3)
+```
+
+> *Averaged per day so weekdays and weekends are comparable, weekday demand rises sharply in the morning, dips midday, and peaks between [X] and [X] PM (the busiest hour overall is [X]:00, with [X] trips). Weekend demand starts later in the morning, peaks around [X], and remains higher than weekdays late at night. This is consistent with commuting and evening activity driving weekday demand and nightlife driving weekend demand.*
 
 ```{r}
 #| label: extra-viz-2
-#| fig-cap: "[Your descriptive title]"
-# Additional chart type if needed
-
+#| fig-cap: "Busiest period is weekday late afternoon"
+df_clean |>
+  count(pickup_wday, pickup_hour) |>
+  ggplot(aes(pickup_hour, fct_rev(pickup_wday), fill = n)) +
+  geom_tile() +
+  scale_fill_viridis_c(labels = comma) +
+  scale_x_continuous(breaks = seq(0, 23, 3)) +
+  labs(title = "Weekday 4-7 PM is the busiest stretch",
+       x = "Pickup hour (0-23)", y = "Day of week", fill = "Trips", caption = src)
 ```
 
-> *\[Your interpretation\]*
+> *The brightest cells are on [days] between [X] and [X] PM, confirming the line chart's evening peak. The darkest cells are in the early morning (about [X]-[X] AM) on every day. [Note any day that differs, such as a weekend day with late-night activity.]*
 
 ------------------------------------------------------------------------
 

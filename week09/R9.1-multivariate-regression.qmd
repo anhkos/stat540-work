@@ -1,7 +1,7 @@
 ---
 title: "Exercise R9.1: Multivariate Regression with Interaction"
 subtitle: "STAT 540 — Week 9"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 execute:
   enabled: false
@@ -13,6 +13,11 @@ format:
     code-fold: false
 ---
 
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
 ## Overview
 
 Fit and interpret a multivariate regression model with interaction terms on the diamonds dataset.
@@ -20,6 +25,8 @@ Fit and interpret a multivariate regression model with interaction terms on the 
 ## Task 1: Fit a Model with Interaction
 
 ```{r}
+library(ggplot2)
+library(tidyverse)
 fit <- lm(log(price) ~ carat * cut + clarity, data = diamonds)
 summary(fit)
 
@@ -30,9 +37,9 @@ tidy(fit, conf.int = TRUE) |>
 
 **Your turn:** Interpret the coefficient for `carat`, the coefficient for `cutIdeal`, and one interaction term in plain language:
 
-- **carat:** *[interpretation]*
-- **cutIdeal:** *[interpretation]*
-- **carat:cutIdeal:** *[interpretation]*
+- **carat:** *This is averaged across cuts and holding clarity fixed. Each additional carat multiples the predicted price by about 7.2, roughly a 620% increase.*
+- **cutIdeal:** *At 0 carats, an Ideal diamond is predicted to cost about half as much as a Fair one. This is however extrapolated as no diamond weighs 0 carats.*
+- **carat:cutIdeal:** *The price-per-carat effect is about 2.3 times larger for Ideal than for Fair diamonds. Better cuts make size matter more for price.*
 
 ## Task 2: Diagnostic Plots
 
@@ -43,7 +50,7 @@ check_model(fit)
 
 **Your turn:** Do you see any assumption violations? Which assumptions hold and which are questionable?
 
-> *[Your answer]*
+> *The model violates linearity with the residuals forming an inverted U against fitted values, and shows moderate heteroscedasticity, with the spread growing at the low and high ends. The normality is questionable because the left tail has a few large negative residuals,  though with the amount of ovservations this has a little effect ont he estimates.*
 
 ## Task 3: Model Comparison
 
@@ -59,7 +66,7 @@ glance(fit_simple) |> select(r.squared, adj.r.squared, AIC, BIC)
 
 **Your turn:** Does the interaction improve the model? Which metrics did you use to decide?
 
-> *[Your answer]*
+> *Yes. The interaction model has lower AIC (43,101 vs 45,948), lower BIC (43,261 vs 46,073), and slightly higher adjusted R^2 (0.8736 vs 0.8667). I relied mainly on AIC and BIC, since both penalize extra parameters. The R^2 gain is small, but the AIC/BIC drops (~2,800) are very large.*
 
 ## Submission
 

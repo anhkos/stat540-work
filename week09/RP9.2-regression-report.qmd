@@ -21,20 +21,33 @@ Produce a complete regression analysis following the standard structure. Choose 
 
 State a clear, specific question that regression can answer. Use a dataset of your choice.
 
-> *[Your question]*
+> *How are a diamond’s carat weight, cut, and clarity associated with its price, and does the price premium for each additional carat differ by cut quality?*
 
 ## 2. Data Description
 
 Briefly describe the dataset: source, size, key variables, and any preprocessing applied.
 
-> *[Your description]*
+> *The analysis uses the diamonds dataset from ggplot2, which has 53,940 diamonds and 10 variables. The outcome is price (US dollars). The predictors are carat (weight), cut (ordered factor: Fair < Good < Very Good < Premium < Ideal), and clarity (ordered factor with 8 levels, I1 to IF). Price is right-skewed, so I modeled log(price). cut and clarity were left as ordered factors, so R uses polynomial contrasts (.L, .Q, .C, ^4, ...) instead of dummy variables. No rows were removed.*
 
 ## 3. Model Specification
 
 What model did you fit? Why did you choose these predictors?
 
+> *Carat is the dominant driver of diamond price, clarity is a major quality grade, and cut may change how much each carat is worth, so I included a carat x cut interaction. I compared this against a main-effects-only model to test whether the interaction is justified.* 
+
 ```{r}
 # Your model code here
+library(tidyverse)
+library(broom)
+
+fit        <- lm(log(price) ~ carat * cut + clarity, data = diamonds)
+fit_simple <- lm(log(price) ~ carat + cut + clarity, data = diamonds)
+
+bind_rows(
+  interaction = glance(fit),
+  main_only   = glance(fit_simple),
+  .id = "model"
+) |> select(model, r.squared, adj.r.squared, AIC, BIC)
 ```
 
 ## 4. Results
@@ -43,9 +56,14 @@ Report coefficients with confidence intervals, R² or accuracy, and at least one
 
 ```{r}
 # Your results code here
+tidy(fit, conf.int = TRUE) |>
+  mutate(across(where(is.numeric), ~ round(., 4)))
+
+# Effect sizes: R-squared plus partial eta-squared for each term
+effectsize::eta_squared(car::Anova(fit, type = 2), partial = TRUE)
 ```
 
-**Plain-language interpretation:** *[One paragraph interpreting the key findings]*
+**Plain-language interpretation:** *Partial n^2 shows carat dominates (0.86), followed by clarity (0.12) and the carat × cut interaction (0.05). The main effect of cut is negligible (0.002), meaning cut matters mainly through how it changes the price per carat.*
 
 ## 5. Diagnostics
 
@@ -53,6 +71,20 @@ Check model assumptions. Note any violations and what you did about them.
 
 ```{r}
 # Your diagnostic code here
+library(performance)
+
+# Original model
+check_model(fit)
+
+# Refit: log-log with centered log(carat) to address curvature and collinearity
+diamonds2 <- diamonds |>
+  mutate(log_price    = log(price),
+         log_carat_c  = log(carat) - mean(log(carat)))
+
+fit_log <- lm(log_price ~ log_carat_c * cut + clarity, data = diamonds2)
+
+check_model(fit_log)
+check_collinearity(fit_log)
 ```
 
 ## 6. Performance Assessment
@@ -61,13 +93,41 @@ If predictive: report train/test metrics. If inferential: report significance an
 
 ```{r}
 # Your evaluation code here
+
+# Inferential: significance and CIs (robust SEs, since variance is not constant)
+# install.packages(c("sandwich", "lmtest")) if needed
+lmtest::coeftest(fit_log, vcov = sandwich::vcovHC(fit_log, type = "HC3"))
+lmtest::coefci(fit_log,  vcov = sandwich::vcovHC(fit_log, type = "HC3"))
+
+# Out-of-sample check
+set.seed(123)
+idx   <- sample(nrow(diamonds2), 0.8 * nrow(diamonds2))
+train <- diamonds2[idx, ]
+test  <- diamonds2[-idx, ]
+
+m1 <- lm(log_price ~ carat * cut + clarity,      data = train)
+m2 <- lm(log_price ~ log_carat_c * cut + clarity, data = train)
+
+eval_model <- function(m, nm) {
+  p <- predict(m, test)
+  tibble(model     = nm,
+         train_R2  = summary(m)$r.squared,
+         test_R2   = cor(p, test$log_price)^2,
+         test_RMSE = sqrt(mean((test$log_price - p)^2)),
+         test_MAE  = mean(abs(test$log_price - p)))
+}
+
+bind_rows(eval_model(m1, "carat (original)"),
+          eval_model(m2, "log(carat) (refit)"))
 ```
 
 ## 7. Limitations
 
 What can this model NOT answer? What are the data limitations?
 
-> *[Your limitations — at least 3 specific points]*
+> *1. The data are observational, so the model cannot say what would happen to a specific diamond’s price if its cut or clarity changed.
+2. Omitted variables. Color, dimensions, depth, table, seller, and certification are excluded, and the data are a single snapshot, so market changes over time aren’t captured.
+3. Limited range. Most diamonds are under ~2 carats, so predictions for large stones are extrapolations.*
 
 ## Submission Checklist
 

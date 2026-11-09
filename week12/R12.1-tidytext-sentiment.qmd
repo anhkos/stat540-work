@@ -1,0 +1,77 @@
+---
+title: "Exercise R12.1: Text Preprocessing & Sentiment Analysis"
+subtitle: "STAT 540 — Week 12"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+Preprocess text data with tidytext and perform lexicon-based sentiment analysis on a book from Project Gutenberg.
+
+## Task 1: Tokenize and Analyze Word Frequencies
+
+```{r}
+library(tidytext); library(gutenbergr); library(dplyr); library(ggplot2)
+
+book <- gutenberg_download(1342)  # Pride and Prejudice
+words <- book |>
+  unnest_tokens(word, text) |>
+  anti_join(stop_words) |>
+  count(word, sort = TRUE)
+
+words |> head(20) |>
+  ggplot(aes(x = reorder(word, n), y = n)) +
+  geom_col(fill = "steelblue") + coord_flip() +
+  labs(title = "Top 20 Words in Pride and Prejudice", x = NULL, y = "Count") +
+  theme_minimal()
+```
+
+**Your turn:** What are the most common content words? Do they reflect the book's themes?
+
+> *The most common content words are the names of the characters in the book. They don't reflect the book's themes, but show how often the main characters are mentioned in the book (for me, it also shows how the women are mentioned by first name, while the men are mentioned by their last names!)*
+
+## Task 2: Sentiment Trajectory
+
+```{r}
+sentiments <- book |>
+  mutate(chapter = cumsum(str_detect(text, "^CHAPTER"))) |>
+  filter(chapter > 0) |>
+  unnest_tokens(word, text) |>
+  inner_join(get_sentiments("bing")) |>
+  count(chapter, sentiment) |>
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |>
+  mutate(net = positive - negative)
+
+ggplot(sentiments, aes(x = chapter, y = net)) +
+  geom_col(aes(fill = net > 0), show.legend = FALSE) +
+  geom_smooth(se = FALSE, color = "black") +
+  labs(title = "Sentiment Arc of Pride and Prejudice", x = "Chapter", y = "Net Sentiment") +
+  theme_minimal()
+```
+
+**Your turn:** Does the sentiment arc match the plot of the novel? Which chapters are most negative and why?
+
+> *Based on my rather fuzzy memory of the book, I would say that the arc matches the plot loosely. The sentiment is overall positive, which makes sense, given that it is a comedy with a happy ending, and the chapters with the most negative sentiments center around "low" moments such as Darcy's proposal at Hunsford (and Elizabeth's subsequent furious rejection), and the Wickham exposee. The later negative spike matches the moment where Lydia's elopment of Mr. Wickham happens, with the entire family being fearful of her being "ruined".*
+
+## Task 3: Reflection on Lexicon Limitations
+
+In 100 words, discuss: What can lexicon-based sentiment analysis capture? What does it miss? Give a specific example from your results.
+
+> *Lexicon-based sentiment analysis captures the overall emotional tone of text by counting words tagged as positive or negative. In our results, it picked up the broad arc of Pride and Prejudice: mostly positive throughout, with dips around Darcy’s failed proposal and Lydia’s elopement, and a recovery toward the happy ending. It’s fast, transparent, and good for spotting large-scale trends. There are limitations, however--it misses context, irony, and negation. Austen’s polite, sarcastic prose can hide anger behind courteous words, while “pride” and “prejudice” themselves may be scored as negative. It also ignores chapter length, so raw sums can exaggerate long chapters. For example, the big positive spike near chapter 42 reflects counts of pleasant words, not necessarily the chapter’s true emotional weight.*
+
+## Submission
+
+```bash
+git add week12/exercises/R12.1*
+git commit -m "Complete Exercise R12.1: tidytext sentiment analysis"
+git push origin main
+```

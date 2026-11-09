@@ -1,0 +1,99 @@
+---
+title: "Exercise RP10.2: k-Means Clustering"
+subtitle: "STAT 540 — Week 10"
+author: "Sokhna Amar"
+date: today
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+Apply k-means clustering to the penguins dataset (without using species labels), choose k, and compare discovered clusters to actual species.
+
+## Task 1: Elbow and Silhouette Plots
+
+Use R or Python to generate both plots:
+
+```{r}
+library(tidyverse)
+library(cluster)
+library(patchwork)
+library(palmerpenguins)
+
+X <- penguins |>
+  drop_na() |>
+  select(bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g)
+
+X_scaled <- scale(X)
+
+set.seed(42)
+d <- dist(X_scaled)
+
+results <- map_dfr(2:10, function(k) {
+  km <- kmeans(X_scaled, centers = k, nstart = 25)
+  tibble(
+    k = k,
+    inertia = km$tot.withinss,
+    sil = mean(silhouette(km$cluster, d)[, "sil_width"])
+  )
+})
+
+p1 <- ggplot(results, aes(k, inertia)) +
+  geom_line() + geom_point() + labs(title = "Elbow")
+p2 <- ggplot(results, aes(k, sil)) +
+  geom_line() + geom_point() + labs(title = "Silhouette")
+
+p1 + p2
+```
+
+**Your turn:** What k do the elbow and silhouette methods suggest? Do they agree?
+
+> *Silhouette peaks at k = 2 (~0.53), while the elbow is gradual and flattens around k = 3-5. They don’t fully agree, but k = 2-3 is the plausible range. k = 2 likely just separates Gentoo from the other two species, and k = 3 matches the three known species despite a lower silhouette (~0.45).*
+
+## Task 2: Compare Clusters to Species
+
+```{r}
+set.seed(42)
+km <- kmeans(X_scaled, centers = 3, nstart = 25)
+
+penguins_clean <- penguins |> drop_na()
+table(Species = penguins_clean$species, Cluster = km$cluster)
+```
+
+**Your turn:** How well do the 3 clusters correspond to the 3 species? Which species is best separated? Which overlaps?
+
+> *The clusters match species well. Gentoo is perfectly separated (all 119 in cluster 3). Adelie (124 of 146) and Chinstrap (63 of 68) each mostly land in one cluster, but they overlap: 22 Adelie fell into Chinstrap’s cluster and 5 Chinstrap into Adelie’s. Total misassigned: 27 of 333 (~8%).*
+
+## Task 3: Cluster with Fewer Features
+
+Repeat with only bill measurements (length + depth). How do results change?
+
+```{r}
+X_bill <- penguins_clean |> select(bill_length_mm, bill_depth_mm)
+X_bill_scaled <- scale(X_bill)
+
+set.seed(42)
+km_bill <- kmeans(X_bill_scaled, centers = 3, nstart = 25)
+
+table(Species = penguins_clean$species, Cluster = km_bill$cluster)
+
+```
+
+**Your turn:** Did using fewer features help or hurt? Why might some features be more informative for clustering?
+
+> *Using only bill measurements made things slightly worse overall, but not by much. Adelie improved (142 of 146 correct, up from 124), but Gentoo is no longer perfectly separated (7 misassigned, up from 0) and Chinstrap got worse (only 54 of 68 correct, with 9 landing in Gentoo’s cluster). The total number of misassigned was 32, up from 27. Bill measurements alone separate the species decently, but flipper length and body mass are what cleanly isolate Gentoo, which is much larger. Features are more informative when between-species differences are large relative to within-species spread. Adding them gave Gentoo a clear signal, while bill depth and length alone leave more overlap between Chinstrap and the others.*
+
+## Submission
+
+```bash
+git add week10/exercises/RP10.2*
+git commit -m "Complete Exercise RP10.2: k-means clustering analysis"
+git push origin main
+```
