@@ -1,0 +1,120 @@
+---
+title: "Exercise R11.1: Classification Metrics & ROC Curves"
+subtitle: "STAT 540 — Week 11"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    code-fold: false
+---
+
+## Overview
+
+Evaluate a classification model on an imbalanced dataset using multiple metrics. Demonstrate why accuracy alone is insufficient.
+
+## Task 1: Build a Classifier on Imbalanced Data
+
+Use a dataset with class imbalance (e.g., credit card fraud, or simulate one):
+
+```{r}
+library(tidymodels)
+set.seed(123)
+
+# Simulate an imbalanced dataset (~3% positive class)
+n <- 10000
+sim <- tibble(
+  x1 = rnorm(n),
+  x2 = rnorm(n),
+  x3 = rnorm(n)
+) |>
+  mutate(
+    p = plogis(-4.5 + 1.2 * x1 + 1.0 * x2 - 0.8 * x3),
+    actual = factor(
+      if_else(rbinom(n, 1, p) == 1, "positive", "negative"),
+      levels = c("positive", "negative")   # positive FIRST so yardstick treats it as the event
+    )
+  ) |>
+  select(-p)
+
+count(sim, actual) |> mutate(prop = n / sum(n))
+
+# Split (stratified so both sets keep the imbalance)
+split <- initial_split(sim, prop = 0.75, strata = actual)
+train <- training(split)
+test  <- testing(split)
+
+# Model 1: logistic regression
+fit_lr <- logistic_reg() |>
+  set_engine("glm") |>
+  fit(actual ~ x1 + x2 + x3, data = train)
+
+# Predictions with probabilities + class
+preds <- predict(fit_lr, test, type = "prob") |>
+  bind_cols(predict(fit_lr, test)) |>
+  bind_cols(test |> select(actual))
+
+head(preds)
+```
+
+## Task 2: Compute Multiple Metrics
+
+```{r}
+library(yardstick)
+
+metrics_set <- metric_set(accuracy, precision, recall, f_meas, roc_auc)
+results <- preds |> metrics_set(truth = actual, estimate = .pred_class, .pred_positive)
+print(results)
+```
+
+**Your turn:** Is accuracy high? Is precision or recall low? Explain why accuracy is misleading here:
+
+> *Accuracy is high (0.968), but recall is very low (0.126) while precision is moderate (0.786). Only about 3% of cases are positive, so a model that predicts “negative” almost every time is right roughly 97% of the time. Accuracy is dominated by the majority class, so it hides the fact that the model misses about 87% of the true positives, which is the class we actually care about (e.g., fraud). Recall and F1 expose this failure, and the gap between the high AUC (0.884) and the low recall shows the model can separate the classes but the default 0.5 threshold is too conservative for such a rare outcome.*
+
+## Task 3: ROC Curves for Two Models
+
+Fit two different models and compare their ROC curves:
+
+```{r}
+library(ggplot2)
+# install.packages("ranger") if needed
+
+# Model 2: random forest
+fit_rf <- rand_forest(trees = 500) |>
+  set_engine("ranger") |>
+  set_mode("classification") |>
+  fit(actual ~ x1 + x2 + x3, data = train)
+
+preds_rf <- predict(fit_rf, test, type = "prob") |>
+  bind_cols(predict(fit_rf, test)) |>
+  bind_cols(test |> select(actual))
+
+# AUC for each
+roc_auc(preds,    truth = actual, .pred_positive)
+roc_auc(preds_rf, truth = actual, .pred_positive)
+
+# Both ROC curves on one plot
+bind_rows(
+  preds    |> mutate(model = "Logistic regression"),
+  preds_rf |> mutate(model = "Random forest")
+) |>
+  group_by(model) |>
+  roc_curve(truth = actual, .pred_positive) |>
+  autoplot()
+```
+
+**Your turn:** Which model has higher AUC? Which would you deploy and why?
+
+> *Logistic regression has the higher AUC (0.884) compared to the random forest (0.864). Its ROC curve lies above the random forest’s curve across most thresholds, especially in the mid-range of false positive rates, meaning it ranks true positives above negatives more reliably. I would deploy the logistic regression model. It performs at least as well as the random forest, it is simpler and more interpretable (coefficients show how each predictor affects risk), and it is less prone to overfitting when positive cases are rare. Before deploying, I would tune the decision threshold below 0.5, since the default cutoff gave very low recall (0.126) on this imbalanced data. The right threshold depends on the relative cost of missing a positive versus raising a false alarm.*
+
+## Submission
+
+```bash
+git add week11/exercises/R11.1*
+git commit -m "Complete Exercise R11.1: Classification metrics and ROC curves"
+git push origin main
+```
