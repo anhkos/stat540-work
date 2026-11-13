@@ -1,7 +1,7 @@
 ---
 title: "Exercise RP12.2: Classical NLP vs LLM Comparison"
 subtitle: "STAT 540 — Week 12"
-author: "Your Name Here"
+author: "Sokhna Amar"
 date: last-modified
 format:
   html:
@@ -10,22 +10,10 @@ format:
     toc: true
     code-fold: false
 ---
-
 ```{r}
 reticulate::use_virtualenv("stat540", required = TRUE)
 reticulate::py_config()
 ```
-```{python}
-import pandas as pd
-import numpy as np
-from IPython.display import Markdown
-from datasets import load_dataset
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-```
-
 ## Overview
 
 Compare a TF-IDF classifier with an LLM on the same sentiment classification task using 20 sample reviews.
@@ -38,61 +26,107 @@ Choose 20 reviews (10 positive, 10 negative) from your test set. These should in
 
 ```{python, warning=FALSE}
 # Use your pipeline from P12.1
-# tfidf_preds = pipe.predict(sample_reviews)
-dataset = load_dataset("stanfordnlp/imdb", split="train").shuffle(seed=42).select(range(5000))
-texts = dataset["text"]
-labels = dataset["label"]
+import pandas as pd, joblib
 
-X_train, X_test, y_train, y_test = train_test_split(texts, labels, test_size=0.2, random_state=42)
+pipe = joblib.load("tfidf_pipe.joblib")
+test = pd.read_csv("imdb_test_split.csv")
+short = test[test["text"].str.len() < 700]
 
-pipe = Pipeline([
-    ("tfidf", TfidfVectorizer(max_features=10000, ngram_range=(1, 2), stop_words="english")),
-    ("clf", LogisticRegression(max_iter=1000))
-])
-pipe.fit(X_train, y_train)
-```
+pat = r"\b(?:but|however|although|though|despite|except|yet|not)\b|n't"
 
-```{python}
-test = pd.DataFrame({"text": X_test, "label": y_test})
-test["label"] = test["label"].map({1: "pos", 0: "neg"})
-test["text_clean"] = test["text"].str.replace("<br />", " ", regex=False)  # for display/LLM
-test["n_words"] = test["text_clean"].str.split().str.len()
-print(test.head(20))
+def pick(label):
+    pool = short[short.label == label]
+    tricky = pool[pool.text.str.contains(pat, case=False, regex=True)].sample(5, random_state=1)
+    regular = pool.drop(tricky.index).sample(5, random_state=1)
+    return pd.concat([tricky.assign(kind="tricky"), regular.assign(kind="regular")])
+
+sample = pd.concat([pick(0), pick(1)]).sample(frac=1, random_state=1).reset_index(drop=True)
+sample.insert(0, "review_id", range(1, 21))
+sample.to_csv("rp12_2_sample20.csv", index=False)
+
+# Print these and paste them into the LLM
+for _, r in sample.iterrows():
+    print(f"{r.review_id}. {r.text}\n")
+    
+sample["tfidf_pred"] = pipe.predict(sample["text"])
 ```
 
 ## Task 3: Classify with an LLM
 
 Use Claude, ChatGPT, or another LLM (via web interface or API) to classify the same 20 reviews. Document the prompt you used.
 
-**Your prompt:** *You are a sentiment classifier for movie reviews. For each numbered review below, answer with exactly one word: positive or negative. Return one line per review in the format "<number>: <label>" and nothing else.*
+**Your prompt:** *Classify each movie review below as Positive or Negative. Reply with only a numbered list (1-20), one word per line: Positive or Negative.*
+
+```{python}
+# llm outputs
+raw = """1. Negative
+2. Positive
+3. Negative
+4. Positive
+5. Negative
+6. Positive
+7. Negative
+8. Positive
+9. Negative
+10. Negative
+11. Positive
+12. Negative
+13. Positive
+14. Positive
+15. Negative
+16. Positive
+17. Negative
+18. Positive
+19. Positive
+20. Negative"""
+
+llm_preds = [1 if "Positive" in line else 0 for line in raw.splitlines()]
+assert len(llm_preds) == 20
+```
 
 ## Task 4: Compare Results
 
-| Review # | True Label | TF-IDF Prediction | LLM Prediction | Both Correct? |
-|----------|-----------|-------------------|----------------|---------------|
-| 1 | *[pos/neg]* | *[pred]* | *[pred]* | *[Y/N]* |
-| ... | | | | |
-| 20 | *[pos/neg]* | *[pred]* | *[pred]* | *[Y/N]* |
+```{python}
+sample["llm_pred"] = llm_preds
+sample["tfidf_ok"] = sample.tfidf_pred == sample.label
+sample["llm_ok"] = sample.llm_pred == sample.label
+sample["both_correct"] = sample.tfidf_ok & sample.llm_ok
+
+name = {0: "neg", 1: "pos"}
+table = sample[["review_id", "label", "tfidf_pred", "llm_pred", "both_correct"]].copy()
+for c in ["label", "tfidf_pred", "llm_pred"]:
+    table[c] = table[c].map(name)
+table["both_correct"] = table["both_correct"].map({True: "Y", False: "N"})
+table.columns = ["Review #", "True Label", "TF-IDF Prediction", "LLM Prediction", "Both Correct?"]
+table
+```
 
 **Summary:**
-- TF-IDF accuracy on these 20: ___/20
-- LLM accuracy on these 20: ___/20
+- TF-IDF accuracy on these 20: 16/20
+- LLM accuracy on these 20: 20/20
 
 ## Task 5: Error Analysis
+
+```{python}
+diff = sample[sample.tfidf_ok != sample.llm_ok]
+for _, r in diff.iterrows():
+    who = "TF-IDF failed, LLM right" if r.llm_ok else "LLM failed, TF-IDF right"
+    print(f"#{r.review_id} ({who}), true={name[r.label]}\n{r.text}\n")
+```
 
 For cases where one method failed and the other succeeded, explain WHY:
 
 **TF-IDF failed, LLM succeeded:**
-> *[Example and explanation — what did TF-IDF miss?]*
+> *TF-IDF missed four reviews (#3, #6, #11, #19). In each, the words that carry the sentiment don’t match the surface vocabulary the model learned, which is what a bag-of-words model sees.*
 
 **LLM failed, TF-IDF succeeded (if any):**
-> *[Example and explanation]*
+> *none*
 
 ## Task 6: Reflection (150 words)
 
 When would you choose TF-IDF over an LLM? When would you choose the LLM? Consider: cost, speed, accuracy, interpretability, and data privacy.
 
-> *[Your reflection]*
+> *I would choose TF-IDF when I need to classify large volumes of text cheaply, quickly, and privately. It trains in seconds, runs locally with no per-query cost, and is interpretable: I can inspect coefficients to see exactly why a review was labeled negative, as I did in P12.1. Because the data never leaves my machine, it is also the safer choice for sensitive text. However, my comparison showed its weakness. It missed 4 of 20 reviews because it counts words without understanding context, so it was fooled by negative topics, ironic praise, and hedged criticism. The LLM got 20 out of 20 by reading tone and overall verdict, so I would choose it for small, high-stakes, or nuanced tasks where accuracy matters most. Its downsides are cost, slower speed, privacy risk from sending data to a third party, and less transparent reasoning. With only 20 reviews, these results are suggestive, not conclusive.*
 
 ## Submission
 
