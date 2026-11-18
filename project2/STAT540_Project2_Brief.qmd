@@ -1,0 +1,435 @@
+---
+title: "Project 2: Statistical Modeling"
+subtitle: "STAT 540 — Foundations of Data Science"
+author: "Sokhna Amar"
+date: last-modified
+execute:
+  enabled: false
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    number-sections: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(dplyr)
+library(ggplot2)
+library(broom)
+library(performance)
+library(tidymodels)
+# Additional packages
+library(readr)
+library(tidyr)
+library(lmtest)
+library(sandwich)
+src <- "Source: UCI Bike Sharing Dataset (Capital Bikeshare, Washington DC, 2011-2012)"
+```
+
+::: {.callout-important}
+## Project 2 — Instructions
+
+**Weight:** 15% of final grade | **Assigned:** Week 9 | **Due:** Week 11
+
+**Submit:** Push to your GitHub repository and submit the URL via the Project 2 assignment on Canvas. Your repo must contain this `.qmd`, the rendered `.html`, your data (or download instructions), and a `README.md`.
+
+**How to use this file:** Fill in the code chunks and replace all `> *[Your answer]*` placeholders with your own prose. When finished, change `execute: enabled: false` to `true` and render.
+
+**Language:** Use R or Python (or both). If using Python, adapt the code chunks accordingly.
+:::
+
+## Choose Your Dataset
+
+### Option C: Bike Sharing
+
+**Source:** [UCI ML Repository](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset) | **Size:** 17,379 × 17
+
+Hourly bike rental counts in Washington DC with weather, season, and calendar features.
+
+*Modeling goal:* Linear regression predicting rental count from temperature, humidity, wind speed, season, and time features. Consider log-transforming the count variable.
+
+---
+
+**My chosen dataset:**
+
+> *I chose the Bike Sharing dataset (hourly data, `hour.csv`).*
+
+**My research question:**
+
+> *Which weather and calendar factors are associated with hourly bike rental demand in Washington DC, and how well can they predict it? In particular, does the daily rental pattern differ between working days and non-working days?*
+
+---
+
+## 1. Introduction & Research Question (10 points)
+
+```{r}
+#| label: load-data
+bike_raw <- read_csv("data/hour.csv", show_col_types = FALSE)
+dim(bike_raw)
+range(bike_raw$dteday)
+glimpse(bike_raw)
+```
+
+> *The data come from the Capital Bikeshare system in Washington DC and were assembled by Fanaee-T and Gama for the UCI Machine Learning Repository. Each row is one hour between 1 January 2011 and 31 December 2012 (17,379 rows × 17 columns). The outcome variable is `cnt`, the total number of bikes rented in that hour (casual plus registered riders). The predictors are weather measures (temperature, humidity, wind speed, and a weather category), calendar variables (season, year, hour of day, working day, holiday), and a few others. My research question is which of these factors are associated with rental demand and how well they predict it, with a specific interest in whether the hourly pattern differs between working days and non-working days.*
+>
+> *Regression is appropriate because the outcome is a numeric count with many observations, and I want to quantify how much demand changes per unit change in each predictor while holding the others fixed, and to predict demand for new hours. Because `cnt` is a continuous, strongly right-skewed quantity (and effects are likely multiplicative), this is a **linear regression** problem, and I model the log of the count so that coefficients can be read as percentage changes.*
+
+---
+
+## 2. Data Preparation (10 points)
+
+### Missing Values & Cleaning
+
+```{r}
+#| label: missing-cleaning
+# Missing values per column
+colSums(is.na(bike_raw))
+
+# Suspicious zeros in the weather variables
+bike_raw |> summarise(hum_zero = sum(hum == 0), wind_zero = sum(windspeed == 0),
+                      wind_zero_pct = round(100 * mean(windspeed == 0), 1))
+bike_raw |> filter(hum == 0) |> count(dteday)
+
+n_raw <- nrow(bike_raw)
+
+bike <- bike_raw |>
+  filter(hum > 0) |>   # drop the sensor-failure day
+  mutate(
+    season     = factor(season, levels = 1:4, labels = c("Winter", "Spring", "Summer", "Fall")),
+    year       = factor(yr, levels = 0:1, labels = c("2011", "2012")),
+    weather    = factor(case_when(weathersit == 1 ~ "Clear",
+                                  weathersit == 2 ~ "Mist",
+                                  TRUE ~ "Rain/snow"),
+                        levels = c("Clear", "Mist", "Rain/snow")),
+    workingday = factor(workingday, levels = 0:1, labels = c("No", "Yes")),
+    hr_f       = factor(hr),
+    # the dataset stores normalized values; convert back to real units
+    temp_c     = temp * 41,
+    hum_pct    = hum * 100,
+    wind_kmh   = windspeed * 67,
+    log_cnt    = log(cnt)
+  ) |>
+  # casual + registered = cnt (would leak the outcome); atemp duplicates temp
+  select(-casual, -registered, -atemp, -temp, -hum, -windspeed, -yr, -weathersit)
+
+c(rows_before = n_raw, rows_after = nrow(bike))
+table(bike$weather)
+```
+
+> *There are no missing values (NA) in any column. However, there is a hidden data problem: humidity is exactly 0 for 22 rows, all on a single day (2011-03-10), which is physically implausible and looks like a sensor failure. I deleted those 22 rows (0.1% of the data) rather than imputing, since there are so few and they come from one day. Wind speed is exactly 0 in about 12.5% of rows, which probably reflects low-resolution measurements rather than truly windless hours; I kept these rows but note it as a limitation.*
+>
+> *For encoding, I converted `season`, `year`, `workingday`, and `hour` to factors (hour is not linear, so it needs one level per hour). Weather category 4 (heavy precipitation) has only 3 rows, so I merged categories 3 and 4 into one "Rain/snow" level to avoid an unstable coefficient. I converted the normalized temperature, humidity, and wind speed back to °C, %, and km/h so coefficients are interpretable. I dropped `casual` and `registered` because they add up to the outcome (leakage), and `atemp` because it nearly duplicates `temp`. The outcome is `log(cnt)`; `cnt` is never zero (minimum 1), so the log is defined for every row.*
+
+### Train/Test Split
+
+```{r}
+#| label: train-test-split
+# Split BEFORE any modeling
+set.seed(42)  # For reproducibility
+split <- initial_split(bike, prop = 0.8)
+train <- training(split)
+test  <- testing(split)
+c(train = nrow(train), test = nrow(test))
+```
+
+> Train set: 13,885 rows | Test set: 3,472 rows
+
+---
+
+## 3. Exploratory Analysis of Key Variables (10 points)
+
+```{r}
+#| label: outcome-distribution
+#| fig-cap: "Hourly rentals are right-skewed on the raw scale; the log scale is much more symmetric"
+train |>
+  select(cnt, log_cnt) |>
+  pivot_longer(everything(), names_to = "scale", values_to = "value") |>
+  mutate(scale = recode(scale, cnt = "Rentals per hour (cnt)", log_cnt = "log(rentals per hour)")) |>
+  ggplot(aes(value)) +
+  geom_histogram(bins = 40, fill = "#0072B2", color = "white") +
+  facet_wrap(~scale, scales = "free") +
+  labs(title = "Hourly bike rentals are strongly right-skewed",
+       x = NULL, y = "Number of hours", caption = src)
+
+c(skew_cnt = mean((train$cnt - mean(train$cnt))^3) / sd(train$cnt)^3,
+  skew_log = mean((train$log_cnt - mean(train$log_cnt))^3) / sd(train$log_cnt)^3)
+```
+
+> *The raw count is strongly right-skewed (skewness about 1.3): the median is 142 rentals per hour, the mean is 190, and the maximum is 977. Many hours (especially overnight) have fewer than 10 rentals, while a few rush hours have several hundred. A log transformation removes most of the right skew (skewness falls to about -0.9 in the other direction, because of the cluster of very low overnight counts) and, more importantly, turns effects into percentage changes, which suits demand that grows with the weather and time of day. Predictions on the log scale are also always positive once converted back. I therefore model `log(cnt)`.*
+
+```{r}
+#| label: predictor-exploration
+#| fig-cap: "Rentals rise with temperature, and the hourly pattern differs completely between working and non-working days"
+p1 <- ggplot(train, aes(temp_c, log_cnt)) +
+  geom_point(alpha = 0.08, color = "#0072B2") +
+  geom_smooth(color = "#D55E00", se = FALSE) +
+  labs(title = "Rentals rise with temperature, then level off",
+       x = "Temperature (°C)", y = "log(rentals per hour)", caption = src)
+
+p2 <- train |>
+  group_by(hr, workingday) |>
+  summarise(mean_cnt = mean(cnt), .groups = "drop") |>
+  ggplot(aes(hr, mean_cnt, color = workingday)) +
+  geom_line(linewidth = 1) + geom_point() +
+  scale_color_manual(values = c("No" = "#D55E00", "Yes" = "#0072B2")) +
+  scale_x_continuous(breaks = seq(0, 23, 3)) +
+  labs(title = "Working days have commute peaks; other days peak at midday",
+       x = "Hour of day", y = "Mean rentals per hour", color = "Working day", caption = src)
+
+p3 <- ggplot(train, aes(weather, log_cnt, fill = weather)) +
+  geom_boxplot(show.legend = FALSE, outlier.alpha = 0.2) +
+  scale_fill_viridis_d(option = "D", end = 0.85) +
+  labs(title = "Rain or snow is associated with lower rentals",
+       x = "Weather", y = "log(rentals per hour)", caption = src)
+
+p1; p2; p3
+
+cor(train |> select(log_cnt, temp_c, hum_pct, wind_kmh))["log_cnt", ]
+train |> group_by(season) |> summarise(mean_cnt = mean(cnt))
+train |> group_by(year) |> summarise(mean_cnt = mean(cnt))
+```
+
+> *Temperature is clearly related to rentals: the correlation with log count is 0.38, and the trend rises steadily from about 5°C to 35°C and then flattens, so a linear term is a reasonable approximation. Humidity is negatively correlated (-0.34) and wind speed is weakly positively correlated (0.12), though the latter is probably a side effect of when windy hours occur. Weather category matters: median log rentals are visibly lower in rain or snow. The seasonal and yearly differences are large (mean rentals about 113 in winter versus 236 in summer, and 143 in 2011 versus 235 in 2012).*
+>
+> *The strongest and most important pattern is the hour of day, and it depends on whether it is a working day. On working days there are two sharp commuting peaks (about 8 AM and 5-6 PM), while on non-working days demand rises gradually to a single midday plateau. The overall mean is almost the same for the two day types (194 vs 180), so a model with only a working-day main effect would miss this completely. This tells me the improved model should include hour as a factor (nonlinear), and an **interaction between hour and working day**, together with season, weather, and year.*
+
+---
+
+## 4. Model Fitting (20 points)
+
+### Model 1: Baseline
+
+```{r}
+#| label: model-baseline
+fit1 <- lm(log_cnt ~ temp_c + hum_pct + wind_kmh, data = train)
+```
+
+```{r}
+#| label: baseline-summary
+tidy(fit1, conf.int = TRUE) |>
+  mutate(pct_change = 100 * (exp(estimate) - 1), across(where(is.numeric), ~ round(.x, 4)))
+glance(fit1) |> select(r.squared, adj.r.squared, sigma, AIC, BIC)
+```
+
+> *In the baseline model, each additional 1°C is associated with about a 7.0% increase in hourly rentals (coefficient 0.068, 95% CI 0.065 to 0.071), holding humidity and wind constant. Each additional percentage point of humidity is associated with about a 2.3% decrease in rentals (95% CI -2.4% to -2.2%). Wind speed has a small positive coefficient (+0.7% per km/h), which is counterintuitive and suggests the baseline is picking up something else about when windy hours occur. The model explains only 24.6% of the variation in log rentals, so these three weather variables alone are not enough.*
+
+### Model 2: Improved
+
+```{r}
+#| label: model-improved
+# Added: season, weather category, year, hour of day (factor), working day,
+# and the working day x hour interaction (all motivated by the EDA)
+fit2 <- lm(log_cnt ~ temp_c + hum_pct + wind_kmh + season + weather + year +
+             workingday * hr_f, data = train)
+```
+
+```{r}
+#| label: improved-summary
+tidy(fit2, conf.int = TRUE) |>
+  filter(!grepl("hr_f", term)) |>
+  mutate(pct_change = 100 * (exp(estimate) - 1), across(where(is.numeric), ~ round(.x, 4)))
+glance(fit2) |> select(r.squared, adj.r.squared, sigma, AIC, BIC)
+
+# Predicted rentals across the day for a typical clear summer 2012 day (20°C)
+sm <- mean(exp(residuals(fit2)))   # smearing factor to back-transform from the log scale
+profile <- expand.grid(hr_f = factor(0:23), workingday = factor(c("No", "Yes"), levels = c("No", "Yes")),
+                       temp_c = 20, hum_pct = 60, wind_kmh = 13,
+                       season = factor("Summer", levels = levels(bike$season)),
+                       weather = factor("Clear", levels = levels(bike$weather)),
+                       year = factor("2012", levels = levels(bike$year)))
+profile$pred <- exp(predict(fit2, profile)) * sm
+```
+
+```{r}
+#| label: interaction-plot
+#| fig-cap: "Model 2 predicted rentals across the day: commute peaks on working days, midday hump otherwise"
+ggplot(profile, aes(as.numeric(as.character(hr_f)), pred, color = workingday)) +
+  geom_line(linewidth = 1) +
+  scale_color_manual(values = c("No" = "#D55E00", "Yes" = "#0072B2")) +
+  scale_x_continuous(breaks = seq(0, 23, 3)) +
+  labs(title = "The model reproduces the commute peaks on working days",
+       subtitle = "Clear day, 20°C, 60% humidity, summer 2012",
+       x = "Hour of day", y = "Predicted rentals per hour", color = "Working day", caption = src)
+```
+
+> *Holding the other variables fixed, in the improved model: (1) each additional 1°C is associated with about 3.9% more rentals (coefficient 0.0386, 95% CI 3.8% to 4.1%), so a 10°C warmer hour is associated with roughly 47% more rentals. (2) Rain or snow is associated with about 44.6% fewer rentals than a clear hour (95% CI -46.1% to -42.9%), while mist is associated with about 6.5% fewer. (3) 2012 had about 60% more rentals than 2011 (95% CI 58% to 63%), which reflects growth of the system. Compared with winter, spring, summer, and fall hours had about 45%, 34%, and 71% more rentals at the same temperature (fall is highest even after controlling for temperature).*
+>
+> *(4) The working day × hour interaction means the effect of a working day depends on the hour. The `workingdayYes` coefficient (-0.92) applies only to midnight, where working days have about 60% fewer rentals. The interaction terms shift this by hour: at 8 AM, a working day is associated with about 5.2 times as many rentals as a non-working day at the same hour (and 7.7 times at 7 AM), while at 2 PM it is associated with about half as many. For a clear 20°C summer day in 2012 the model predicts about 668 rentals at 8 AM and 599 at 5 PM on a working day, but a flatter midday peak of about 414 on a non-working day. Humidity and wind both have small negative effects here (-2.2% per 10 points of humidity, -0.4% per km/h of wind); notably the wind coefficient changed sign from the baseline once hour and season were controlled for, which suggests the baseline's positive wind effect was confounded by when windy hours occur.*
+
+**Why I chose these predictors:**
+
+> *Temperature, humidity, and wind are the baseline weather variables and have clear physical reasons to affect cycling. Season and weather category were added because rainy or snowy hours and the colder months showed lower demand in the EDA boxplots and means, and the model needs to separate these from temperature alone. Year was added because mean rentals rose by about 60% between 2011 and 2012 (system growth), which would otherwise be absorbed into the other coefficients. Hour of day was entered as a factor because demand is strongly nonlinear across the day (near zero at 4 AM, peaks at 8 AM and 5-6 PM). The working day × hour interaction is the key addition: the EDA line plot shows commuting peaks on working days and a midday hump on other days, and an F-test confirms the interaction improves the fit dramatically (F = 819 on 23 degrees of freedom, p < 0.001; it reduces the residual sum of squares from 5,516 to 2,335).*
+
+---
+
+## 5. Model Diagnostics (15 points)
+
+```{r}
+#| label: diagnostics
+#| fig-cap: "Diagnostic plots for the improved model"
+#| fig-height: 8
+check_model(fit2, check = c("linearity", "qq", "homogeneity", "outliers"))
+
+res <- residuals(fit2)
+c(skew = mean(res^3) / sd(res)^3, kurtosis = mean(res^4) / sd(res)^4)
+bptest(fit2)                 # Breusch-Pagan test for non-constant variance
+dwtest(fit2)                 # Durbin-Watson test for autocorrelation
+c(max_cooks = max(cooks.distance(fit2)))
+
+# Residual spread by time of day
+train |> mutate(res = res, tod = cut(hr, c(-1, 5, 9, 15, 19, 23),
+                                     labels = c("0-5 AM", "6-9 AM", "10 AM-3 PM", "4-7 PM", "8-11 PM"))) |>
+  group_by(tod) |> summarise(sd_resid = round(sd(res), 2))
+
+# Robust (HC3) standard errors for the non-hour coefficients
+coeftest(fit2, vcov = vcovHC(fit2, type = "HC3"))[!grepl("hr_f", names(coef(fit2))), ] |> round(4)
+```
+
+> *Linearity holds reasonably well: the residuals versus fitted plot is centered around zero without strong curvature, which is thanks to entering hour as a factor. Normality is only approximately satisfied. The residuals have a heavy left tail (skewness -0.81, kurtosis 6.7, compared to 3 for a normal), caused by hours with very low counts (1 or 2 rentals) where the model overpredicts. The **constant variance assumption is violated**: the Breusch-Pagan test is highly significant (p < 0.001), and the residual standard deviation is much larger overnight (about 0.5-0.6 at 1-4 AM) than during the day (about 0.3-0.35), because small counts are noisy. Residuals show no meaningful autocorrelation in this ordering (Durbin-Watson = 1.98, p = 0.15), and there are no influential points (maximum Cook's distance is 0.006, far below 1).*
+>
+> *To deal with the heteroscedasticity I recomputed the standard errors using heteroscedasticity-robust (HC3) estimates. They are very similar to the ordinary ones (for example, the temperature SE stays 0.0008 and the working-day SE moves from 0.037 to 0.039), and every non-hour coefficient remains significant at p < 0.001, so the conclusions do not change. I kept the log model rather than a different transformation because the violations are concentrated in low-count overnight hours that matter little for total demand. A count model (Poisson or negative binomial) would handle this better and is a natural next step. Prediction intervals from this model should not be trusted for overnight hours, since the spread there is larger than the model assumes.*
+
+```{r}
+#| label: vif
+# VIF for the main-effects version of Model 2 (VIF is not meaningful for the interaction terms themselves)
+fit2_additive <- lm(log_cnt ~ temp_c + hum_pct + wind_kmh + season + weather + year +
+                      workingday + hr_f, data = train)
+car::vif(fit2_additive)
+```
+
+> *No VIF value is concerning. The largest is for temperature (VIF 3.1, GVIF^(1/(2·df)) = 1.76), which is moderately correlated with season, followed by season (3.0) and humidity (1.9); all are well under the threshold of 5. Including the interaction terms between working day and hour does not create a problem either (the generalized VIF for the interaction is about 1.65). This means the coefficient estimates are not being destabilized by correlated predictors, and I can interpret them individually. Temperature and season partly describe the same thing, so the season coefficients should be read as the seasonal difference beyond what temperature explains.*
+
+---
+
+## 6. Model Comparison & Performance (15 points)
+
+### Model Comparison
+
+```{r}
+#| label: model-comparison
+rmse <- function(a, p) sqrt(mean((a - p)^2))
+r2   <- function(a, p) 1 - sum((a - p)^2) / sum((a - mean(a))^2)
+
+evaluate <- function(fit, name) {
+  smear <- mean(exp(residuals(fit)))       # back-transform with smearing
+  ptr <- predict(fit, train); pte <- predict(fit, test)
+  tibble(model = name,
+         r2_train = r2(train$log_cnt, ptr), adj_r2 = glance(fit)$adj.r.squared,
+         AIC = AIC(fit), BIC = BIC(fit),
+         rmse_log_train = rmse(train$log_cnt, ptr), rmse_log_test = rmse(test$log_cnt, pte),
+         r2_test = r2(test$log_cnt, pte),
+         rmse_cnt_train = rmse(train$cnt, exp(ptr) * smear),
+         rmse_cnt_test = rmse(test$cnt, exp(pte) * smear),
+         mae_cnt_test = mean(abs(test$cnt - exp(pte) * smear)))
+}
+
+bind_rows(evaluate(fit1, "Model 1: Baseline"), evaluate(fit2, "Model 2: Improved")) |>
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+```
+
+| Metric | Model 1 (Baseline) | Model 2 (Improved) |
+|---|---|---|
+| R² (train, log scale) | 0.246 | 0.923 |
+| Adjusted R² | 0.246 | 0.923 |
+| AIC | 46,419 | 14,766 |
+| BIC | 46,456 | 15,203 |
+| RMSE on test set (log scale) | 1.286 | 0.401 |
+| RMSE on test set (rentals per hour) | 197.3 | 72.3 |
+
+### Test Set Evaluation
+
+```{r}
+#| label: test-evaluation
+sm2 <- mean(exp(residuals(fit2)))
+test_pred <- test |> mutate(pred = exp(predict(fit2, test)) * sm2)
+
+# Overall performance of the chosen model
+test_pred |> summarise(rmse_cnt = rmse(cnt, pred), mae_cnt = mean(abs(cnt - pred)),
+                       r2_log = r2(log_cnt, log(pred)), mean_bias = mean(pred - cnt))
+
+ggplot(test_pred, aes(pred, cnt)) +
+  geom_point(alpha = 0.15, color = "#0072B2") +
+  geom_abline(color = "#D55E00", linewidth = 1) +
+  labs(title = "Predicted versus actual hourly rentals on the test set",
+       x = "Predicted rentals per hour", y = "Actual rentals per hour", caption = src)
+
+# Performance across subgroups (used in the fairness discussion below)
+subgroup <- function(d, g) d |> group_by({{ g }}) |>
+  summarise(n = n(), rmse_log = round(rmse(log_cnt, log(pred)), 3),
+            rmse_cnt = round(rmse(cnt, pred), 1), mean_bias = round(mean(pred - cnt), 1))
+subgroup(test_pred, workingday); subgroup(test_pred, season)
+subgroup(test_pred, weather); subgroup(test_pred, year)
+test_pred |>
+  mutate(tod = cut(hr, c(-1, 5, 9, 15, 19, 23), labels = c("0-5 AM", "6-9 AM", "10 AM-3 PM", "4-7 PM", "8-11 PM"))) |>
+  subgroup(tod)
+```
+
+> Train performance: *RMSE (log scale) = 0.410, R² = 0.923* | Test performance: *RMSE (log scale) = 0.401, R² = 0.928 (RMSE = 72.3 rentals per hour, MAE = 41.7)*
+
+> *There is no gap between train and test performance; the test RMSE is in fact slightly lower than the training RMSE (0.401 vs 0.410) and the R² is almost identical. The same is true for the baseline (1.286 test vs 1.287 train). This indicates no overfitting despite the 58 coefficients, which is expected with 13,885 training rows. One caution is that I used a random split, and neighboring hours are strongly related, so the test set is somewhat easier than truly future data (a time-based split would be a harder and more honest test, see Limitations). On the test set the model has an average error of about 42 rentals per hour (MAE), compared to a mean of about 190.*
+
+**My final model choice:**
+
+> *I select Model 2 (improved). It is far better on every metric: test RMSE falls from 197 to 72 rentals per hour (and from 1.29 to 0.40 on the log scale), R² on the test set rises from 0.26 to 0.93, and both AIC (46,419 to 14,766) and BIC (46,456 to 15,203) drop sharply, so the improvement is not just due to adding more parameters. Since there is no train-test gap, the extra complexity is justified. Model 1 is easier to interpret, but it explains only about a quarter of the variation and cannot capture the daily pattern, which is the main driver of demand.*
+
+---
+
+## 7. Limitations & What This Model Cannot Do (10 points)
+
+### Data Limitations
+
+> *The data cover only two years (2011-2012) of one bike-share system, Capital Bikeshare in Washington DC, so the model describes that city and period only. The outcome is the number of rentals, not demand: when a station has no bikes available (or no free docks) a would-be ride is never recorded, so peak demand is probably understated. The counts are hourly totals for the whole system, so they say nothing about individual riders, trip purposes, or neighborhoods. Weather comes from a single source for the whole city, humidity has a sensor-failure day that I removed, and about 12.5% of wind speed readings are exactly 0, which probably reflects measurement limits. Finally, important drivers of demand are not in the data, such as bike availability, prices, events, bike lanes, and the number of stations.*
+
+### Distribution Shift Risks
+
+> *The model assumes that the future looks like 2011-2012. Ridership grew about 60% from 2011 to 2012, and I handled this with a year indicator, which means the model cannot predict 2013 or later without extrapolating that growth. Changes such as new stations, electric bikes, dockless scooters, pricing changes, the COVID-19 pandemic, and remote work (which changes the commute peaks) would all break the working day × hour pattern. The temperature coefficient is also only reliable within the observed range (about 1°C to 41°C), and extreme weather is barely represented (only 3 hours of heavy precipitation in the entire data). Because I used a random train/test split, adjacent hours from the same day appear in both sets, so my test performance (R² = 0.93) is probably optimistic compared with forecasting genuinely future days.*
+
+### Fairness Across Groups
+
+> *I checked performance across subgroups on the test set. Accuracy on the log scale is fairly consistent across working and non-working days (RMSE 0.39 vs 0.44), years (0.42 for 2011 and 0.39 for 2012), and seasons (0.37 to 0.47, worst in winter). It is clearly worse in rain or snow (0.62 vs about 0.38 for clear or misty hours) and overnight (0-5 AM, 0.52), where counts are small and noisy. In absolute terms the error is largest in summer (about 103 rentals per hour) and at 4-7 PM (about 115), when volume is highest. The model also slightly over-predicts on average (about 10 rentals per hour), particularly in 2012 and in summer. The dataset has no information about riders or neighborhoods, so I could not check fairness across demographic groups or areas of the city. Features like working day and hour could act as proxies for commuter versus leisure use, and if the model were used to place bikes or plan stations, undercounting demand in underserved areas (where there are fewer stations and so fewer recorded rides) could reinforce existing inequities.*
+
+### Causal Claims
+
+> *All of the results are associations from observational data, and none should be read as causal. For example, the temperature coefficient does not mean that warming a day by 10°C would increase rentals by 47%: temperature is entangled with season, daylight, school holidays, and tourism, which are only partly controlled by the included variables. The 2012 effect (+60%) cannot be attributed to any single cause, since it combines system expansion, increased awareness, and anything else that changed between years. Rain being associated with 45% fewer rentals is plausible as a behavioral effect, but also reflects who chooses to ride and when. Unmeasured confounders such as bike availability, events, and prices could change all of the estimates. The model is suitable for describing patterns and for prediction in similar conditions, not for evaluating interventions.*
+
+---
+
+## 8. Conclusion (10 points)
+
+### Summary
+
+> *I asked which weather and calendar factors are associated with hourly bike rentals in Washington DC and how well they can predict demand, with a focus on whether the daily pattern differs between working and non-working days. A baseline model using only temperature, humidity, and wind explained about a quarter of the variation in log rentals (R² = 0.25). An improved model that added season, weather category, year, hour of day, and a working day × hour interaction explained about 93% on held-out data (test R² = 0.93, RMSE about 72 rentals per hour, MAE about 42) with no sign of overfitting. I am fairly confident in the main patterns (temperature, weather, time of day, and the commute-versus-leisure difference), since the effects are large and the conclusions held after using robust standard errors. I am less confident about exact predictions overnight, in rain, or for future years, because of non-constant variance, the random split, and the 60% year-to-year growth.*
+
+### Key Findings
+
+1. *Time of day and working day dominate. Adding the hour × working-day interaction cut the residual sum of squares from 5,516 to 2,335 (F = 819, p < 0.001). On working days rentals peak at about 8 AM and 5-6 PM (the model predicts about 668 and 599 rentals for a typical clear summer 2012 day), and at 8 AM a working day has about 5.2 times as many rentals as a non-working day. On non-working days demand has a single midday peak of about 414.*
+2. *Weather is strongly associated with demand. Each additional 1°C is associated with about 3.9% more rentals (95% CI 3.8% to 4.1%), each extra 10 points of humidity with about 2.2% fewer, and rain or snow with about 44.6% fewer rentals than a clear hour (95% CI -46.1% to -42.9%).*
+3. *Demand grew substantially: 2012 had about 60% more rentals than 2011 (95% CI 58% to 63%) at the same weather and time, and fall was the busiest season (about 71% above winter at the same temperature).*
+
+### Next Steps
+
+> *With more time I would (1) use a time-based train/test split (train on 2011 and early 2012, test on late 2012) to get an honest estimate of forecasting accuracy, (2) try a Poisson or negative binomial regression, or a model with weather lags, which would fix the heteroscedasticity in low-count hours and capture effects like weather from the previous hours, (3) separate casual and registered riders, since I expect them to respond very differently to weather and working days, and (4) add information on bike availability, station locations, and events to move from predicting rentals to predicting actual demand and to examine fairness across neighborhoods. With more data (additional years) I could also test whether the working day × hour pattern is stable over time.*
+
+---
+
+## Submission Checklist
+
+::: {.callout-warning}
+## Before Submitting
+- [ ] Changed `execute: enabled: false` to `execute: enabled: true`
+- [ ] Report renders without errors
+- [ ] All placeholder text replaced with your own writing
+- [ ] Two models fitted and compared
+- [ ] At least 3 coefficients interpreted in plain language
+- [ ] Diagnostic plots included with assessment of assumptions
+- [ ] Test set performance reported (not just training performance)
+- [ ] Limitations section covers all 4 areas (≥200 words total)
+- [ ] GitHub repo contains `.qmd`, `.html`, data, and `README.md`
+- [ ] 5+ commits with descriptive messages
+- [ ] Deleted dataset options you did NOT choose
+:::
